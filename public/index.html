@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>VibeChat</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <div class="sidebar">
+
+            <h2 id="users-title">
+                Online Users (0)
+            </h2>
+
+            <ul id="users"></ul>
+
+            <footer>
+                Built by Hariom 🚀
+            </footer>
+
+        </div>
+
+        <div class="chat-container">
+
+            <h1>VibeChat</h1>
+
+            <p class="tagline">
+                Feel the vibe. Chat instantly.
+            </p>
+
+            <div id="messages"></div>
+
+            <div id="typing-status"></div>
+
+            <form id="chat-form">
+
+                <select id="room-select">
+
+                    <option value="General">
+                        General
+                    </option>
+
+                    <option value="Gaming">
+                        Gaming
+                    </option>
+
+                    <option value="Coding">
+                        Coding
+                    </option>
+
+                </select>
+
+                <input
+                    type="text"
+                    id="username-input"
+                    placeholder="Enter username"
+                    autocomplete="off"
+                    required>
+
+                <input
+                    type="text"
+                    id="message-input"
+                    placeholder="Type message..."
+                    autocomplete="off"
+                    required>
+
+                <div class="emoji-bar">
+
+                    <button
+                        type="button"
+                        class="emoji-btn"
+                        onclick="addEmoji('🔥')">
+                        🔥
+                    </button>
+
+                    <button
+                        type="button"
+                        class="emoji-btn"
+                        onclick="addEmoji('😂')">
+                        😂
+                    </button>
+
+                    <button
+                        type="button"
+                        class="emoji-btn"
+                        onclick="addEmoji('😎')">
+                        😎
+                    </button>
+
+                    <button
+                        type="button"
+                        class="emoji-btn"
+                        onclick="addEmoji('🚀')">
+                        🚀
+                    </button>
+
+                </div>
+
+                <button type="submit">
+                    Send
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
