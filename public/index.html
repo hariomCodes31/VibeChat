@@ -17,9 +17,227 @@
 
 <body>
 
-    <div class="app-container">
+    <!-- ============================================================
+         SIDEBAR BACKDROP — visible on mobile when drawer is open
+         Clicking it closes the sidebar drawer
+    ============================================================ -->
+    <div id="sidebar-backdrop"></div>
+
+    <!-- ============================================================
+         LANDING SCREEN
+         Shown on first load. Hides once user enters a room.
+    ============================================================ -->
+    <div id="landing-screen">
+        <div class="landing-card">
+
+            <!-- Logo -->
+            <div class="landing-logo">
+                <h1 class="landing-title">VibeChat</h1>
+                <p class="landing-sub">Feel the vibe. Chat instantly.</p>
+            </div>
+
+            <!-- Avatar picker -->
+            <div class="avatar-section">
+                <label class="field-label">Choose your avatar</label>
+                <div class="avatar-grid" id="avatar-grid">
+                    <button type="button" class="avatar-option selected" data-emoji="👾">👾</button>
+                    <button type="button" class="avatar-option" data-emoji="🦊">🦊</button>
+                    <button type="button" class="avatar-option" data-emoji="🐉">🐉</button>
+                    <button type="button" class="avatar-option" data-emoji="🤖">🤖</button>
+                    <button type="button" class="avatar-option" data-emoji="⚡">⚡</button>
+                    <button type="button" class="avatar-option" data-emoji="🎮">🎮</button>
+                    <button type="button" class="avatar-option" data-emoji="🌙">🌙</button>
+                    <button type="button" class="avatar-option" data-emoji="🔥">🔥</button>
+                </div>
+            </div>
+
+            <!-- Username -->
+            <div class="field-group">
+                <label class="field-label" for="landing-username">Your username</label>
+                <input
+                    type="text"
+                    id="landing-username"
+                    placeholder="Enter your username..."
+                    autocomplete="off"
+                    maxlength="24"
+                >
+            </div>
+
+            <!-- Primary action buttons -->
+            <div class="landing-actions" id="landing-actions">
+                <button type="button" id="btn-create-room" class="btn-landing btn-create">
+                    🚀 Create Room
+                </button>
+                <button type="button" id="btn-join-room" class="btn-landing btn-join">
+                    🔗 Join Room
+                </button>
+            </div>
+
+            <!-- Create Room sub-form (hidden until Create is clicked) -->
+            <div id="create-room-form" class="sub-form hidden">
+                <div class="field-group">
+                    <label class="field-label" for="room-name-input">Room name</label>
+                    <input
+                        type="text"
+                        id="room-name-input"
+                        placeholder="e.g. General Coding"
+                        autocomplete="off"
+                        maxlength="40"
+                    >
+                </div>
+
+                <!-- Room Type selector (Feature 11) -->
+                <div class="field-group">
+                    <label class="field-label">Room Type</label>
+                    <div id="room-type-selector" class="room-type-selector">
+                        <button type="button" class="rt-btn active" data-type="approval"
+                                title="Newcomers wait for admin approval">
+                            ⏳ Approval
+                        </button>
+                        <button type="button" class="rt-btn" data-type="public"
+                                title="Anyone with the code can join instantly">
+                            🌐 Public
+                        </button>
+                        <button type="button" class="rt-btn" data-type="private"
+                                title="Invite link required (coming soon)">
+                            🔒 Private
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sub-form-actions">
+                    <button type="button" id="btn-create-confirm" class="btn-landing btn-create">
+                        ✅ Create &amp; Enter
+                    </button>
+                    <button type="button" id="btn-create-back" class="btn-landing btn-back">
+                        ← Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Join Room sub-form (hidden until Join is clicked) -->
+            <div id="join-room-form" class="sub-form hidden">
+                <div class="field-group">
+                    <label class="field-label" for="room-code-input">Room code</label>
+                    <input
+                        type="text"
+                        id="room-code-input"
+                        placeholder="e.g. A7K9P2"
+                        autocomplete="off"
+                        maxlength="12"
+                        style="text-transform:uppercase"
+                    >
+                </div>
+                <div class="sub-form-actions">
+                    <button type="button" id="btn-join-confirm" class="btn-landing btn-join">
+                        🚪 Enter Room
+                    </button>
+                    <button type="button" id="btn-join-back" class="btn-landing btn-back">
+                        ← Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inline error message -->
+            <p class="landing-error hidden" id="landing-error"></p>
+
+        </div>
+    </div>
+    <!-- /LANDING SCREEN -->
+
+    <!-- ============================================================
+         WAITING SCREEN
+         Shown after join-room-request is sent, waiting for admin.
+    ============================================================ -->
+    <div id="waiting-screen" style="display:none">
+        <div class="waiting-card">
+
+            <div class="waiting-icon">⏳</div>
+
+            <h2 class="waiting-title">Waiting for Approval</h2>
+
+            <p class="waiting-room-label">
+                Requesting to join:
+                <strong id="waiting-room-name"></strong>
+            </p>
+
+            <!-- Animated bouncing dots -->
+            <div class="typing-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+
+            <p class="waiting-sub">
+                The room admin will accept your request shortly.
+            </p>
+
+            <button type="button" id="btn-cancel-wait"
+                    class="btn-landing btn-back">
+                ✕ Cancel Request
+            </button>
+
+        </div>
+    </div>
+    <!-- /WAITING SCREEN -->
+
+    <!-- ============================================================
+         CHAT APP — hidden until user enters a room
+    ============================================================ -->
+    <div id="chat-app" style="display:none; width:100%; height:100%">
+
+        <div class="app-container">
+
+        <!-- Hamburger button — only rendered/visible on mobile -->
+
+        <button id="hamburger-btn" aria-label="Toggle menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
 
         <div class="sidebar">
+
+            <!-- Admin panel: only visible to the room admin -->
+            <div id="admin-panel" class="hidden">
+
+                <div class="admin-panel-header">
+                    <span>⚡ Admin Controls</span>
+                </div>
+
+                <!-- Admin action buttons -->
+                <div class="admin-btn-row">
+                    <button type="button" id="btn-lock-room" class="btn-admin-ctrl" data-locked="false">
+                        🔒 Lock Room
+                    </button>
+                    <button type="button" id="btn-close-room" class="btn-admin-ctrl btn-ctrl-danger">
+                        🗑️ Close Room
+                    </button>
+                </div>
+
+                <!-- Permission toggles -->
+                <div class="perm-section">
+                    <p class="perm-title">🛡️ Permissions</p>
+                    <label class="perm-toggle">
+                        <input type="checkbox" id="perm-reply" checked>
+                        <span>Allow Replies</span>
+                    </label>
+                    <label class="perm-toggle">
+                        <input type="checkbox" id="perm-reactions" checked>
+                        <span>Allow Reactions</span>
+                    </label>
+                </div>
+
+                <!-- Pending requests section -->
+                <div id="pending-section" class="hidden">
+                    <h3 class="pending-title">
+                        🔔 Pending Requests
+                    </h3>
+                    <ul id="pending-list"></ul>
+                </div>
+
+            </div>
+            <!-- /admin-panel -->
 
             <h2 id="users-title">
                 Online Users (0)
@@ -35,7 +253,25 @@
 
         <div class="chat-container">
 
-            <h1>VibeChat</h1>
+            <!-- Chat header row: title + room info -->
+            <div class="chat-header">
+                <h1>VibeChat</h1>
+
+                <!-- Room info bar — hidden until user enters a room -->
+                <div id="room-info-bar" class="hidden">
+                    <span id="room-name-display" class="room-name-display"></span>
+                    <div class="room-code-group">
+                        <span class="room-code-label">CODE</span>
+                        <code id="room-code-badge" class="room-code-badge"></code>
+                        <button type="button" id="btn-copy-code" class="btn-icon" title="Copy room code">
+                            📋
+                        </button>
+                        <button type="button" id="btn-copy-link" class="btn-icon" title="Copy invite link">
+                            🔗
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <p class="tagline">
                 Feel the vibe. Chat instantly.
@@ -45,37 +281,37 @@
 
             <div id="typing-status"></div>
 
+            <!-- Muted banner: shown when admin mutes this user -->
+            <div id="muted-banner" class="hidden" role="alert">
+                🔇 You have been muted by the admin. You cannot send messages.
+            </div>
+
+            <!-- Reply indicator (Feature 13) -->
+            <div id="reply-indicator" class="hidden">
+                <span class="reply-arrow">↩</span>
+                <span id="reply-preview"></span>
+                <button type="button" id="btn-cancel-reply" title="Cancel reply">✕</button>
+            </div>
+
             <form id="chat-form">
 
-                <select id="room-select">
-
-                    <option value="General">
-                        General
-                    </option>
-
-                    <option value="Gaming">
-                        Gaming
-                    </option>
-
-                    <option value="Coding">
-                        Coding
-                    </option>
-
+                <select id="room-select" style="display:none" aria-hidden="true">
+                    <option value="General">General</option>
                 </select>
 
                 <input
                     type="text"
                     id="username-input"
-                    placeholder="Enter username"
-                    autocomplete="off"
-                    required>
+                    style="display:none"
+                    aria-hidden="true"
+                    autocomplete="off">
 
                 <input
                     type="text"
                     id="message-input"
-                    placeholder="Type message..."
-                    autocomplete="off"
-                    required>
+                    placeholder="Type a message..."
+                    autocomplete="off">
+
 
                 <div class="emoji-bar">
 
@@ -117,7 +353,12 @@
 
         </div>
 
+        </div>
+        <!-- /app-container -->
+
     </div>
+    <!-- /CHAT APP -->
+
 
     <script src="/socket.io/socket.io.js"></script>
 
@@ -125,4 +366,4 @@
 
 </body>
 
-</html>
+</html>

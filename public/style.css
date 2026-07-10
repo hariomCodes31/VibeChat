@@ -494,43 +494,1351 @@ footer {
 
 }
 
-@media (max-width: 900px) {
 
+/* ==========================================================
+   CHAT HEADER — wraps the h1 title row
+========================================================== */
+.chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* ==========================================================
+   HAMBURGER BUTTON
+   Hidden on desktop, visible only on mobile (<= 768px)
+========================================================== */
+#hamburger-btn {
+    display: none;              /* hidden on desktop */
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    background: rgba(20, 20, 40, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0;
+    box-shadow: 0 0 16px rgba(0, 255, 255, 0.2);
+    /* Override the global button gradient */
+    background-image: none;
+    transition: box-shadow 0.3s, transform 0.2s;
+}
+
+#hamburger-btn:hover {
+    transform: none;            /* override global button hover lift */
+    box-shadow: 0 0 22px rgba(0, 255, 255, 0.45);
+}
+
+#hamburger-btn span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: #00ffcc;
+    border-radius: 2px;
+    transition: transform 0.3s, opacity 0.3s;
+}
+
+/* Animate hamburger → X when sidebar is open */
+#hamburger-btn[aria-expanded="true"] span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+#hamburger-btn[aria-expanded="true"] span:nth-child(2) {
+    opacity: 0;
+}
+#hamburger-btn[aria-expanded="true"] span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ==========================================================
+   SIDEBAR BACKDROP (mobile overlay behind drawer)
+========================================================== */
+#sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;                   /* top/right/bottom/left: 0 */
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 800;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+#sidebar-backdrop.active {
+    opacity: 1;
+}
+
+/* ==========================================================
+   RESPONSIVE SYSTEM
+   768px  — tablet / landscape phone
+   480px  — portrait phone
+   320px  — minimum supported width
+========================================================== */
+@media (max-width: 768px) {
+
+    /* ---- App container stacks, full height ---- */
     .app-container {
-
         flex-direction: column;
-
+        height: 100dvh;         /* dynamic viewport height for mobile keyboards */
+        overflow: hidden;
     }
 
+    /* ---- Show hamburger button ---- */
+    #hamburger-btn {
+        display: flex;
+    }
+
+    /* ---- Sidebar becomes fixed off-canvas drawer ---- */
     .sidebar {
-
-        width: 100%;
-
-        height: auto;
-
-        border-right: none;
-
-        border-bottom:
-            1px solid rgba(255,255,255,0.1);
-
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 280px;
+        max-width: 85vw;
+        z-index: 900;
+        transform: translateX(-100%);   /* hidden by default */
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: none;
+        overflow-y: auto;
     }
 
+    /* Drawer open state (JS adds this class) */
+    .sidebar.drawer-open {
+        transform: translateX(0);
+    }
+
+    /* Show backdrop when drawer is open */
+    #sidebar-backdrop.active {
+        display: block;
+    }
+
+    /* ---- Chat container takes full viewport ---- */
     .chat-container {
-
-        padding: 10px;
-
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 8px 10px;
+        padding-left: 10px;     /* no need to offset for fixed hamburger (it's over the sidebar) */
+        height: 100%;
+        overflow: hidden;
     }
 
+    /* ---- Adjust chat header to not overlap hamburger ---- */
+    .chat-header {
+        padding-left: 52px;     /* make space for the fixed hamburger button */
+        margin-bottom: 6px;
+        flex-shrink: 0;
+    }
+
+    /* ---- Scale title ---- */
     h1 {
-
-        font-size: 36px;
-
+        font-size: clamp(24px, 6vw, 42px);
+        margin-bottom: 4px;
     }
 
+    .tagline {
+        font-size: clamp(11px, 3vw, 14px);
+        margin-bottom: 10px;
+    }
+
+    /* ---- Messages area grows to fill space, bottom input fixed ---- */
+    #messages {
+        flex: 1;
+        height: auto;           /* override the fixed 70vh */
+        min-height: 0;          /* allow flex shrink */
+        margin-bottom: 8px;
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    /* ---- Message bubbles don't overflow ---- */
     .message {
+        max-width: 88%;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
 
-        max-width: 85%;
+    /* ---- Typing indicator ---- */
+    #typing-status {
+        margin: 4px 6px;
+        font-size: 12px;
+    }
 
+    /* ---- Form / input area: natural flow at bottom of flex column ---- */
+    form {
+        flex-shrink: 0;
+        gap: 6px;
+    }
+
+    /* ---- Inputs and buttons: touch-friendly (min 44px height) ---- */
+    input,
+    select {
+        padding: 12px;
+        font-size: clamp(13px, 3.5vw, 15px);
+        min-height: 44px;
+    }
+
+    button[type="submit"] {
+        min-height: 44px;
+        font-size: clamp(13px, 3.5vw, 15px);
+        padding: 12px;
+    }
+
+    /* ---- Emoji bar wraps so it never overflows ---- */
+    .emoji-bar {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .emoji-btn {
+        padding: 8px 10px;
+        font-size: 16px;
+        min-height: 40px;
+        min-width: 40px;
+    }
+
+    /* ---- Avatar in messages ---- */
+    .avatar {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 13px;
+    }
+
+    /* ---- System message ---- */
+    .system-message {
+        font-size: 12px;
     }
 
 }
+
+/* Very small phones (320px min) */
+@media (max-width: 380px) {
+
+    h1 {
+        font-size: 22px;
+    }
+
+    .message {
+        max-width: 95%;
+    }
+
+    .emoji-btn {
+        padding: 7px 8px;
+        font-size: 14px;
+    }
+
+    .avatar {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+    }
+
+}
+
+/* ==========================================================
+   LANDSCAPE PHONES — ensure chat area doesn't get squished
+========================================================== */
+@media (max-width: 768px) and (orientation: landscape) {
+
+    h1 {
+        font-size: 20px;
+        margin-bottom: 2px;
+    }
+
+    .tagline {
+        display: none;          /* hide tagline to save vertical space */
+    }
+
+    #messages {
+        padding: 8px;
+    }
+
+}
+
+/* ==========================================================
+   UTILITY
+========================================================== */
+.hidden {
+    display: none !important;
+}
+
+/* ==========================================================
+   LANDING SCREEN
+   Full-viewport overlay shown before the user enters a room.
+   Uses the same cyberpunk/glassmorphism aesthetic.
+========================================================== */
+#landing-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    /* Animated diagonal gradient background */
+    background:
+        linear-gradient(135deg, rgba(10,10,25,0.97) 0%, rgba(18,6,40,0.97) 100%);
+    overflow-y: auto;
+}
+
+/* Cyberpunk grid overlay on the landing background */
+#landing-screen::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(0,255,204,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,204,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Glassmorphism card */
+.landing-card {
+    width: 100%;
+    max-width: 460px;
+    background: rgba(15, 15, 30, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 36px 32px;
+    box-shadow:
+        0 0 60px rgba(0, 255, 204, 0.08),
+        0 0 120px rgba(142, 45, 226, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    animation: landingSlideUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landingSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(32px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ---- Logo section ---- */
+.landing-logo {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.landing-title {
+    font-size: clamp(36px, 8vw, 52px);
+    margin-bottom: 6px;
+    /* Reuse existing gradient + animation via inline class */
+    background: linear-gradient(90deg, #c471ed, #12c2e9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: glowPulse 2s infinite alternate;
+}
+
+.landing-sub {
+    color: #8899aa;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+}
+
+/* ---- Avatar picker ---- */
+.avatar-section {
+    margin-bottom: 20px;
+}
+
+.field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #00ffcc;
+    margin-bottom: 10px;
+    opacity: 0.85;
+}
+
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+}
+
+.avatar-option {
+    /* Override global button styles */
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 2px solid transparent;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: none;
+    /* Reset global button gradient */
+    background-image: none;
+}
+
+.avatar-option:hover {
+    transform: scale(1.15);
+    background: rgba(255, 255, 255, 0.13);
+    box-shadow: 0 0 12px rgba(0, 255, 204, 0.3);
+}
+
+.avatar-option.selected {
+    border-color: #00ffcc;
+    background: rgba(0, 255, 204, 0.12);
+    box-shadow: 0 0 18px rgba(0, 255, 204, 0.35);
+    transform: scale(1.1);
+}
+
+/* ---- Username field ---- */
+.field-group {
+    margin-bottom: 16px;
+}
+
+.field-group input {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: white;
+    font-size: 15px;
+    backdrop-filter: blur(10px);
+    transition: border-color 0.25s, box-shadow 0.25s;
+    outline: none;
+}
+
+.field-group input:focus {
+    border-color: rgba(0, 255, 204, 0.5);
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.12);
+}
+
+/* ---- Landing action buttons ---- */
+.landing-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.btn-landing {
+    width: 100%;
+    padding: 13px 12px;
+    border-radius: 14px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    letter-spacing: 0.3px;
+}
+
+.btn-create {
+    background: linear-gradient(135deg, #8e2de2, #4a00e0);
+    color: white;
+    box-shadow: 0 0 20px rgba(142, 45, 226, 0.4);
+}
+
+.btn-create:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(142, 45, 226, 0.65);
+}
+
+.btn-join {
+    background: linear-gradient(135deg, #00b4d8, #0077b6);
+    color: white;
+    box-shadow: 0 0 20px rgba(0, 180, 216, 0.35);
+}
+
+.btn-join:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 180, 216, 0.6);
+}
+
+.btn-back {
+    background: rgba(255, 255, 255, 0.08);
+    color: #aaa;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+}
+
+.btn-back:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.13);
+    box-shadow: none;
+    color: white;
+}
+
+/* ---- Sub-forms (Create Room / Join Room details) ---- */
+.sub-form {
+    animation: subFormIn 0.3s ease both;
+    margin-top: 4px;
+}
+
+@keyframes subFormIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.sub-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* ---- Error text ---- */
+.landing-error {
+    margin-top: 12px;
+    color: #ff6b6b;
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+}
+
+/* ---- Responsive landing ---- */
+@media (max-width: 480px) {
+    .landing-card {
+        padding: 24px 18px;
+        border-radius: 20px;
+    }
+
+    .avatar-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+
+    .avatar-option {
+        height: 48px;
+        font-size: 22px;
+    }
+
+    .landing-actions,
+    .sub-form-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================
+   ROOM INFO BAR
+   Shown in the chat header once a user enters a room.
+========================================================== */
+#room-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 4px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+}
+
+.room-name-display {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c0c8ff;
+    letter-spacing: 0.3px;
+}
+
+.room-code-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.room-code-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #00ffcc;
+    opacity: 0.7;
+}
+
+.room-code-badge {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #00ffcc;
+    background: rgba(0, 255, 204, 0.1);
+    border: 1px solid rgba(0, 255, 204, 0.25);
+    border-radius: 8px;
+    padding: 2px 10px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0, 255, 204, 0.4);
+}
+
+/* Icon-only buttons (copy code, copy link) */
+.btn-icon {
+    width: auto;
+    padding: 4px 8px;
+    min-height: 30px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    /* Reset global button gradient */
+    background-image: none;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: none;
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.1);
+    box-shadow: none;
+}
+
+/* ==========================================================
+   ONLINE USER LIST ITEMS
+   Richer layout: emoji avatar + name + admin crown
+========================================================== */
+#users li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar-sm {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #dde;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-name.is-admin {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* ==========================================================
+   TOAST NOTIFICATION
+   Shown briefly after copying a code or link.
+========================================================== */
+#toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0, 255, 204, 0.15);
+    border: 1px solid rgba(0, 255, 204, 0.35);
+    color: #00ffcc;
+    padding: 10px 22px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    backdrop-filter: blur(12px);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    letter-spacing: 0.5px;
+}
+
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ==========================================================
+   WAITING SCREEN
+   Full-viewport overlay shown while pending admin approval.
+========================================================== */
+#waiting-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(10,10,25,0.97) 0%, rgba(18,6,40,0.97) 100%);
+    /* Same grid as landing */
+    background-image:
+        linear-gradient(rgba(0,255,204,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,204,0.04) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(10,10,25,0.97) 0%, rgba(18,6,40,0.97) 100%);
+    background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+.waiting-card {
+    text-align: center;
+    background: rgba(15, 15, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    backdrop-filter: blur(20px);
+    padding: 48px 40px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 0 60px rgba(0, 255, 204, 0.08),
+                0 0 120px rgba(142, 45, 226, 0.06);
+    animation: landingSlideUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.waiting-icon {
+    font-size: 52px;
+    margin-bottom: 16px;
+    animation: waitingSpin 3s linear infinite;
+}
+
+@keyframes waitingSpin {
+    0%   { transform: rotate(0deg);   }
+    25%  { transform: rotate(-15deg); }
+    75%  { transform: rotate(15deg);  }
+    100% { transform: rotate(0deg);   }
+}
+
+.waiting-title {
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #c471ed, #12c2e9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+}
+
+.waiting-room-label {
+    color: #8899aa;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.waiting-room-label strong {
+    color: #00ffcc;
+}
+
+/* Bouncing dots animation */
+.typing-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto 24px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00ffcc;
+    box-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+    animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(1) { animation-delay: 0s; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+    0%, 80%, 100% { transform: translateY(0);    opacity: 0.4; }
+    40%            { transform: translateY(-12px); opacity: 1;   }
+}
+
+.waiting-sub {
+    color: #667;
+    font-size: 13px;
+    margin-bottom: 28px;
+    line-height: 1.5;
+}
+
+/* ==========================================================
+   ADMIN PANEL (sidebar section)
+   Visible only to the room admin.
+========================================================== */
+#admin-panel {
+    margin-bottom: 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    background: rgba(255, 215, 0, 0.04);
+}
+
+.admin-panel-header {
+    padding: 10px 14px;
+    background: rgba(255, 215, 0, 0.08);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* Pending requests sub-section */
+#pending-section {
+    padding: 10px;
+}
+
+.pending-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #00ffcc;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+#pending-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Individual pending request card */
+.pending-item {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: fadeIn 0.25s ease;
+}
+
+.pending-avatar {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.pending-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: #dde;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pending-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-approve,
+.btn-reject {
+    width: auto;
+    padding: 4px 10px;
+    min-height: 28px;
+    border-radius: 8px;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    background-image: none;
+}
+
+.btn-approve {
+    background: linear-gradient(135deg, #00b09b, #096d2e);
+    color: white;
+    box-shadow: 0 0 10px rgba(0, 176, 155, 0.35);
+}
+
+.btn-approve:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 16px rgba(0, 176, 155, 0.55);
+}
+
+.btn-reject {
+    background: linear-gradient(135deg, #c0392b, #8e0000);
+    color: white;
+    box-shadow: 0 0 10px rgba(192, 57, 43, 0.35);
+}
+
+.btn-reject:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 16px rgba(192, 57, 43, 0.55);
+}
+
+/* ==========================================================
+   MUTED BANNER
+   Shown above chat form when this user is muted by admin.
+========================================================== */
+#muted-banner {
+    margin: 0 16px 10px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(192, 57, 43, 0.12);
+    border: 1px solid rgba(192, 57, 43, 0.35);
+    color: #e74c3c;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+/* ==========================================================
+   ADMIN USER-ACTION BUTTONS
+   Mute and kick buttons shown only for admins in the user list.
+========================================================== */
+.user-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.btn-user-action {
+    width: auto;
+    padding: 3px 7px;
+    min-height: 26px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.07);
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    background-image: none;
+    transition: background 0.18s, transform 0.12s;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.btn-user-action:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(1.12);
+    box-shadow: none;
+}
+
+.btn-kick-user:hover {
+    background: rgba(192, 57, 43, 0.35);
+    border-color: rgba(192, 57, 43, 0.6);
+}
+
+.btn-mute-user:hover {
+    background: rgba(255, 165, 0, 0.25);
+    border-color: rgba(255, 165, 0, 0.5);
+}
+
+/* ==========================================================
+   MUTED USER IN USER LIST
+========================================================== */
+.user-name.is-muted {
+    color: #778;
+    opacity: 0.7;
+}
+
+/* ==========================================================
+   FEATURE 11: ROOM TYPE SELECTOR (Landing page)
+========================================================== */
+.room-type-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.rt-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #aab;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-image: none;
+    box-shadow: none;
+    min-height: 36px;
+    letter-spacing: 0.3px;
+}
+
+.rt-btn:hover {
+    background: rgba(0, 255, 204, 0.08);
+    border-color: rgba(0, 255, 204, 0.35);
+    color: #00ffcc;
+    transform: none;
+    box-shadow: none;
+}
+
+.rt-btn.active {
+    background: rgba(0, 255, 204, 0.12);
+    border-color: rgba(0, 255, 204, 0.5);
+    color: #00ffcc;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+}
+
+/* ==========================================================
+   FEATURE 7 + 10: ADMIN CONTROL BUTTONS (Lock / Close)
+========================================================== */
+.admin-btn-row {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-admin-ctrl {
+    flex: 1;
+    padding: 7px 8px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    background: rgba(255, 215, 0, 0.07);
+    color: #ffd700;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.12s;
+    background-image: none;
+    box-shadow: none;
+    min-height: 32px;
+    letter-spacing: 0.3px;
+}
+
+.btn-admin-ctrl:hover {
+    background: rgba(255, 215, 0, 0.18);
+    transform: scale(1.04);
+    box-shadow: none;
+}
+
+.btn-ctrl-danger {
+    border-color: rgba(192, 57, 43, 0.35);
+    background: rgba(192, 57, 43, 0.08);
+    color: #e74c3c;
+}
+
+.btn-ctrl-danger:hover {
+    background: rgba(192, 57, 43, 0.22);
+}
+
+/* Locked state — button turns red */
+.btn-admin-ctrl[data-locked="true"] {
+    background: rgba(192, 57, 43, 0.12);
+    border-color: rgba(192, 57, 43, 0.4);
+    color: #e74c3c;
+}
+
+/* ==========================================================
+   FEATURE 12: PERMISSION TOGGLES
+========================================================== */
+.perm-section {
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.perm-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #8899aa;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.perm-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 12px;
+    color: #aab;
+    user-select: none;
+}
+
+.perm-toggle input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #00ffcc;
+    cursor: pointer;
+}
+
+.perm-toggle:hover span {
+    color: #dde;
+}
+
+/* ==========================================================
+   FEATURE 8: TRANSFER ADMIN BUTTON (in user list)
+========================================================== */
+.btn-transfer-admin {
+    background: rgba(255, 215, 0, 0.12);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #ffd700;
+}
+
+.btn-transfer-admin:hover {
+    background: rgba(255, 215, 0, 0.28);
+    border-color: rgba(255, 215, 0, 0.6);
+}
+
+/* ==========================================================
+   FEATURE 13: REPLY INDICATOR (above chat form)
+========================================================== */
+#reply-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 16px 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(0, 255, 204, 0.07);
+    border-left: 3px solid #00ffcc;
+    font-size: 12px;
+    color: #8899aa;
+    animation: fadeIn 0.2s ease;
+}
+
+.reply-arrow {
+    color: #00ffcc;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+#reply-preview {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #aabbcc;
+}
+
+#btn-cancel-reply {
+    background: none;
+    border: none;
+    color: #667;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    min-height: auto;
+    width: auto;
+    line-height: 1;
+    background-image: none;
+    box-shadow: none;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+#btn-cancel-reply:hover {
+    color: #e74c3c;
+    background: none;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Reply quote inside a chat message */
+.reply-quote {
+    display: block;
+    border-left: 2px solid rgba(0, 255, 204, 0.5);
+    padding: 3px 8px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    background: rgba(0, 255, 204, 0.05);
+    font-size: 11px;
+    color: #8899aa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================
+   FEATURE 14: MESSAGE REACTIONS
+========================================================== */
+/* Container at bottom of each message */
+.message-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+    min-height: 0;
+}
+
+/* Individual reaction pill */
+.reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.12s;
+    user-select: none;
+}
+
+.reaction-pill:hover {
+    background: rgba(0, 255, 204, 0.12);
+    border-color: rgba(0, 255, 204, 0.35);
+    transform: scale(1.08);
+}
+
+.reaction-pill.mine {
+    background: rgba(0, 255, 204, 0.15);
+    border-color: rgba(0, 255, 204, 0.4);
+}
+
+.reaction-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #aabbcc;
+}
+
+/* Emoji picker that appears on message hover */
+.emoji-picker {
+    display: none;
+    gap: 3px;
+    padding: 4px 6px;
+    border-radius: 12px;
+    background: rgba(15, 15, 35, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    position: absolute;
+    top: -38px;
+    right: 0;
+    z-index: 200;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: fadeIn 0.15s ease;
+}
+
+.message:hover .emoji-picker,
+.message.mine:hover .emoji-picker {
+    display: flex;
+}
+
+.emoji-btn {
+    background: none;
+    border: none;
+    width: auto;
+    min-height: auto;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 3px;
+    border-radius: 6px;
+    transition: transform 0.12s, background 0.12s;
+    background-image: none;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.emoji-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.25);
+    box-shadow: none;
+}
+
+/* Reply button that appears on message hover */
+.btn-reply-msg {
+    display: none;
+    background: none;
+    border: none;
+    color: #8899aa;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    transition: color 0.15s, background 0.15s;
+    min-height: auto;
+    width: auto;
+    background-image: none;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.message:hover .btn-reply-msg {
+    display: block;
+}
+
+.btn-reply-msg:hover {
+    color: #00ffcc;
+    background: rgba(0, 255, 204, 0.1);
+    transform: none;
+    box-shadow: none;
+}
+
+/* All message wrappers need relative positioning for the absolute picker */
+.message {
+    position: relative;
+}
+
+/* ==========================================================
+   FEATURE 16: UI POLISH
+========================================================== */
+/* Smooth message reveal animation */
+.message {
+    animation: messageSlideIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes messageSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Room type badge in room info bar */
+#room-type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: rgba(0, 255, 204, 0.1);
+    border: 1px solid rgba(0, 255, 204, 0.25);
+    color: #00ffcc;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-left: 6px;
+}
+
+/* Room lock indicator in header */
+#room-lock-icon {
+    font-size: 14px;
+    margin-left: 4px;
+    opacity: 0.8;
+}
+
+/* Smoother sidebar scroll */
+.sidebar {
+    scroll-behavior: smooth;
+}
+
+/* Better focus ring */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #00ffcc;
+    outline-offset: 2px;
+}
+
