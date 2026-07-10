@@ -17,11 +17,8 @@
 
 <body>
 
-    <!-- ============================================================
-         SIDEBAR BACKDROP — visible on mobile when drawer is open
-         Clicking it closes the sidebar drawer
-    ============================================================ -->
-    <div id="sidebar-backdrop"></div>
+
+    <!-- Sidebar backdrop moved inside app-container for correct stacking context -->
 
     <!-- ============================================================
          LANDING SCREEN
@@ -187,6 +184,9 @@
     <div id="chat-app" style="display:none; width:100%; height:100%">
 
         <div class="app-container">
+
+            <!-- Sidebar backdrop — now inside app-container for layout stacking context -->
+            <div id="sidebar-backdrop"></div>
 
         <!-- Hamburger button — only rendered/visible on mobile -->
 

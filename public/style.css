@@ -571,11 +571,13 @@ footer {
     backdrop-filter: blur(3px);
     z-index: 800;
     opacity: 0;
+    pointer-events: none;       /* Disable pointer-events by default */
     transition: opacity 0.3s;
 }
 
 #sidebar-backdrop.active {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /* ==========================================================
@@ -603,16 +605,20 @@ footer {
     /* ---- Show hamburger button ---- */
     #hamburger-btn {
         display: flex;
-        z-index: 1001; /* Above drawer backdrop and drawer */
+        z-index: 1200; /* Above sidebar drawer */
     }
 
     /* ---- Sidebar backdrop ---- */
     #sidebar-backdrop {
-        z-index: 999;
+        z-index: 1000; /* Overlay: z-index 1000 */
+        pointer-events: none; /* Disable pointer-events by default when closed */
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
     }
     #sidebar-backdrop.active {
         display: block !important;
         opacity: 1 !important;
+        pointer-events: auto !important; /* Enable pointer-events only while active */
     }
 
     /* ---- Sidebar becomes fixed slide-out drawer (75-80% width) ---- */
@@ -623,7 +629,7 @@ footer {
         height: 100%;
         width: 78%; /* Slide-out drawer (75–80% width) */
         max-width: 320px;
-        z-index: 1000;
+        z-index: 1100; /* Sidebar: z-index 1100 (renders above backdrop overlay) */
         transform: translateX(-100%);   /* hidden by default */
         transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         border-right: 1px solid rgba(255, 255, 255, 0.12);
@@ -647,6 +653,8 @@ footer {
         overflow: hidden;
         width: 100%;
         box-sizing: border-box;
+        position: relative;
+        z-index: 1; /* Main content: z-index 1 */
     }
 
     /* ---- Adjust chat header and tagline to clear hamburger button ---- */
