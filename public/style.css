@@ -586,42 +586,55 @@ footer {
 ========================================================== */
 @media (max-width: 768px) {
 
+    /* Avoid horizontal scrolling globally on mobile */
+    html, body {
+        overflow-x: hidden;
+        width: 100vw;
+    }
+
     /* ---- App container stacks, full height ---- */
     .app-container {
         flex-direction: column;
         height: 100dvh;         /* dynamic viewport height for mobile keyboards */
         overflow: hidden;
+        width: 100%;
     }
 
     /* ---- Show hamburger button ---- */
     #hamburger-btn {
         display: flex;
+        z-index: 1001; /* Above drawer backdrop and drawer */
     }
 
-    /* ---- Sidebar becomes fixed off-canvas drawer ---- */
+    /* ---- Sidebar backdrop ---- */
+    #sidebar-backdrop {
+        z-index: 999;
+    }
+    #sidebar-backdrop.active {
+        display: block !important;
+        opacity: 1 !important;
+    }
+
+    /* ---- Sidebar becomes fixed slide-out drawer (75-80% width) ---- */
     .sidebar {
         position: fixed;
         top: 0;
         left: 0;
         height: 100%;
-        width: 280px;
-        max-width: 85vw;
-        z-index: 900;
+        width: 78%; /* Slide-out drawer (75–80% width) */
+        max-width: 320px;
+        z-index: 1000;
         transform: translateX(-100%);   /* hidden by default */
         transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         border-right: 1px solid rgba(255, 255, 255, 0.12);
         border-bottom: none;
         overflow-y: auto;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.55);
     }
 
-    /* Drawer open state (JS adds this class) */
+    /* Drawer open state */
     .sidebar.drawer-open {
         transform: translateX(0);
-    }
-
-    /* Show backdrop when drawer is open */
-    #sidebar-backdrop.active {
-        display: block;
     }
 
     /* ---- Chat container takes full viewport ---- */
@@ -629,77 +642,114 @@ footer {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: 8px 10px;
-        padding-left: 10px;     /* no need to offset for fixed hamburger (it's over the sidebar) */
+        padding: 8px 12px;
         height: 100%;
         overflow: hidden;
+        width: 100%;
+        box-sizing: border-box;
     }
 
-    /* ---- Adjust chat header to not overlap hamburger ---- */
+    /* ---- Adjust chat header and tagline to clear hamburger button ---- */
     .chat-header {
-        padding-left: 52px;     /* make space for the fixed hamburger button */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding-left: 64px; /* Ensure offset to prevent overlap with hamburger */
+        padding-right: 16px;
         margin-bottom: 6px;
         flex-shrink: 0;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
     }
 
-    /* ---- Scale title ---- */
-    h1 {
-        font-size: clamp(24px, 6vw, 42px);
-        margin-bottom: 4px;
+    /* Reduce h1 font size on mobile */
+    .chat-header h1 {
+        font-size: clamp(20px, 5.5vw, 26px);
+        margin: 0 0 4px 0;
+        text-align: center;
+        width: 100%;
+        word-break: break-word;
     }
 
     .tagline {
-        font-size: clamp(11px, 3vw, 14px);
-        margin-bottom: 10px;
+        padding-left: 64px;
+        padding-right: 16px;
+        font-size: 12px;
+        text-align: center;
+        margin-bottom: 8px;
+        box-sizing: border-box;
+        width: 100%;
     }
 
-    /* ---- Messages area grows to fill space, bottom input fixed ---- */
+    /* ---- Room info bar wraps vertically to prevent squeeze ---- */
+    #room-info-bar {
+        display: flex;
+        flex-direction: column; /* Wrap properly instead of squeezing into one row */
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding: 6px 10px;
+        margin-top: 4px;
+        box-sizing: border-box;
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    .room-name-display {
+        font-size: 13px;
+        text-align: center;
+        word-break: break-all;
+    }
+
+    .room-code-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* ---- Messages area: full remaining height, input stays at bottom ---- */
     #messages {
         flex: 1;
-        height: auto;           /* override the fixed 70vh */
-        min-height: 0;          /* allow flex shrink */
+        height: auto;
+        min-height: 0;
         margin-bottom: 8px;
         padding: 12px;
         border-radius: 16px;
+        overflow-y: auto;
+        overflow-x: hidden; /* Avoid horizontal scrolling */
     }
 
-    /* ---- Message bubbles don't overflow ---- */
-    .message {
-        max-width: 88%;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-    }
-
-    /* ---- Typing indicator ---- */
-    #typing-status {
-        margin: 4px 6px;
-        font-size: 12px;
-    }
-
-    /* ---- Form / input area: natural flow at bottom of flex column ---- */
+    /* ---- Chat form stays fixed at bottom ---- */
     form {
         flex-shrink: 0;
-        gap: 6px;
+        gap: 8px;
+        margin-top: auto;
+        padding-bottom: 4px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
-    /* ---- Inputs and buttons: touch-friendly (min 44px height) ---- */
+    /* ---- Touch friendly inputs and primary buttons (min 44px) ---- */
     input,
-    select {
-        padding: 12px;
-        font-size: clamp(13px, 3.5vw, 15px);
-        min-height: 44px;
+    select,
+    button[type="submit"],
+    #btn-cancel-wait {
+        min-height: 44px !important;
+        font-size: 14px;
+        padding: 12px 16px;
     }
 
-    button[type="submit"] {
-        min-height: 44px;
-        font-size: clamp(13px, 3.5vw, 15px);
-        padding: 12px;
-    }
-
-    /* ---- Emoji bar wraps so it never overflows ---- */
+    /* ---- Emojis wrap and fit touch screens ---- */
     .emoji-bar {
+        display: flex;
+        justify-content: center;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 8px;
     }
 
     .emoji-btn {
@@ -709,7 +759,52 @@ footer {
         min-width: 40px;
     }
 
-    /* ---- Avatar in messages ---- */
+    /* ---- Touch friendly buttons in user list & admin ctrls ---- */
+    .btn-user-action {
+        min-height: 38px !important;
+        min-width: 38px !important;
+        font-size: 16px !important;
+        padding: 8px !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-admin-ctrl {
+        min-height: 38px !important;
+        font-size: 11px !important;
+        padding: 8px 10px !important;
+    }
+
+    .rt-btn {
+        min-height: 38px !important;
+        font-size: 12px !important;
+        padding: 8px 10px !important;
+    }
+
+    /* ---- Font sizes inside messages ---- */
+    .message {
+        max-width: 90%;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .message strong {
+        font-size: 13px;
+    }
+    .message div {
+        font-size: 13.5px;
+    }
+    .message .timestamp {
+        font-size: 10px;
+    }
+    .message .reply-quote {
+        font-size: 10.5px;
+    }
+    .system-message {
+        font-size: 11.5px;
+    }
+
+    /* ---- Avatar size ---- */
     .avatar {
         width: 32px;
         height: 32px;
@@ -717,33 +812,62 @@ footer {
         font-size: 13px;
     }
 
-    /* ---- System message ---- */
-    .system-message {
-        font-size: 12px;
+    /* ---- Sidebar list font sizes ---- */
+    #users-title {
+        font-size: 15px !important;
+        padding: 10px 8px 6px !important;
     }
-
+    #users li {
+        font-size: 13px;
+    }
+    .user-name {
+        font-size: 13px;
+    }
+    
+    /* Waiting screen scaling */
+    .waiting-title {
+        font-size: 20px !important;
+    }
+    .waiting-room-label {
+        font-size: 13px !important;
+    }
+    .waiting-sub {
+        font-size: 12px !important;
+    }
 }
 
-/* Very small phones (320px min) */
+/* Very small phones (320px to 380px) */
 @media (max-width: 380px) {
 
-    h1 {
-        font-size: 22px;
+    .chat-container {
+        padding: 6px 8px;
+    }
+
+    #messages {
+        padding: 10px;
+        margin-bottom: 6px;
     }
 
     .message {
-        max-width: 95%;
+        max-width: 92%;
     }
 
-    .emoji-btn {
-        padding: 7px 8px;
-        font-size: 14px;
+    .message-top {
+        gap: 6px;
     }
 
     .avatar {
         width: 28px;
         height: 28px;
         min-width: 28px;
+        font-size: 12px;
+    }
+
+    .emoji-btn {
+        padding: 6px 8px;
+        font-size: 14px;
+        min-height: 36px;
+        min-width: 36px;
     }
 
 }
