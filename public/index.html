@@ -12,7 +12,7 @@
     <title>VibeChat</title>
 
     <link rel="stylesheet" href="style.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 </head>
 
 <body>
@@ -306,11 +306,17 @@
                     aria-hidden="true"
                     autocomplete="off">
 
-                <input
-                    type="text"
-                    id="message-input"
-                    placeholder="Type a message..."
-                    autocomplete="off">
+                <div class="message-input-wrapper">
+                    <input
+                        type="text"
+                        id="message-input"
+                        placeholder="Type a message..."
+                        autocomplete="off">
+                    <button type="button" id="btn-sticker-picker" title="Send a custom sticker">
+                        🖼️
+                    </button>
+                    <input type="file" id="sticker-file-input" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none">
+                </div>
 
 
                 <div class="emoji-bar">
@@ -360,10 +366,42 @@
     <!-- /CHAT APP -->
 
 
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- ============================================================
+         STICKER CROPPER MODAL (Feature: Custom Sticker Version 1)
+    ============================================================ -->
+    <div id="sticker-crop-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content sticker-modal-content">
+            <h3 class="modal-title">📐 Crop Sticker</h3>
+            <div class="cropper-container">
+                <img id="sticker-crop-image" alt="Sticker source image">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="btn-crop-cancel" class="btn-modal btn-back">✕ Cancel</button>
+                <button type="button" id="btn-crop-confirm" class="btn-modal btn-create">Next →</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- ============================================================
+         STICKER PREVIEW MODAL (Feature: Custom Sticker Version 1)
+    ============================================================ -->
+    <div id="sticker-preview-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content sticker-modal-content">
+            <h3 class="modal-title">✨ Sticker Preview</h3>
+            <div class="sticker-preview-container">
+                <img id="sticker-preview-img" alt="Sticker preview">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="btn-preview-cancel" class="btn-modal btn-back">✕ Cancel</button>
+                <button type="button" id="btn-preview-send" class="btn-modal btn-create">🚀 Send Sticker</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="script.js"></script>
 
 </body>
 
-</html>
+</html>

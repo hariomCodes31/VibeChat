@@ -1973,4 +1973,191 @@ input:focus-visible {
     outline: 2px solid #00ffcc;
     outline-offset: 2px;
 }
+
+/* ==========================================================
+   FEATURE: CUSTOM STICKERS (Version 1)
+========================================================== */
+.message-input-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+
+.message-input-wrapper #message-input {
+    flex: 1;
+    width: auto;
+}
+
+#btn-sticker-picker {
+    width: 50px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    background-image: none;
+    box-shadow: none;
+}
+
+#btn-sticker-picker:hover {
+    background: rgba(0, 255, 204, 0.12);
+    border-color: rgba(0, 255, 204, 0.5);
+    transform: scale(1.05);
+}
+
+/* Modals wrapper */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: modalFadeIn 0.25s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.sticker-modal-content {
+    background: rgba(25, 25, 45, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-sizing: border-box;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 0;
+}
+
+/* Cropper Container */
+.cropper-container {
+    width: 100%;
+    height: 300px;
+    max-height: 50vh;
+    background: #0f0f1c;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cropper-container img {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+}
+
+/* Preview Container */
+.sticker-preview-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #0f0f1c;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sticker-preview-container img {
+    max-width: 180px;
+    max-height: 180px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.btn-modal {
+    flex: 1;
+    min-height: 40px !important;
+    font-size: 14px;
+    padding: 10px 14px;
+}
+
+/* Sticker image displayed inside message bubble */
+.sticker-img {
+    display: block;
+    max-width: 160px;
+    max-height: 160px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin-top: 4px;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.sticker-img:hover {
+    transform: scale(1.05);
+}
+
+/* WhatsApp/Discord style floating sticker messages */
+.message.sticker-message {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 4px 6px !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    width: fit-content;
+}
+
+.message.sticker-message:hover {
+    transform: none; /* Disable hover movement for floating stickers */
+}
+
+/* Ensure reply quote inside a sticker message fits width */
+.message.sticker-message .reply-quote {
+    margin-bottom: 4px;
+    max-width: 160px;
+}
+
+/* Mobile specific overrides for custom stickers */
+@media (max-width: 768px) {
+    .sticker-img {
+        max-width: 140px;
+        max-height: 140px;
+    }
+    
+    .sticker-preview-container img {
+        max-width: 140px;
+        max-height: 140px;
+    }
+
+    .message.sticker-message .reply-quote {
+        max-width: 140px;
+    }
+}
+
+
 

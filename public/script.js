@@ -134,7 +134,11 @@ socket.on("chat message", (data) => {
 
     // Only render messages from OTHER users (we already rendered ours locally)
     if (data.username !== currentUsername) {
-        addMessage(data.username, data.message, data.timestamp, false);
+        addMessage(data.username, data.message, data.timestamp, false, {
+            replyTo:   data.replyTo,
+            messageId: data.messageId,
+            sticker:   data.sticker
+        });
     }
 
 });
@@ -466,6 +470,9 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
     const item = document.createElement('div');
     item.classList.add('message');
     item.classList.add(isMine ? 'my-message' : 'other-message');
+    if (opts.sticker) {
+        item.classList.add('sticker-message');
+    }
 
     // Stable unique ID for reactions
     const msgId = opts.messageId || (Date.now() + '_' + Math.random().toString(36).slice(2, 7));
@@ -476,16 +483,25 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         ? `<span class="reply-quote">↩ ${opts.replyTo.username}: ${opts.replyTo.text.slice(0,60)}</span>`
         : '';
 
+    const contentHTML = opts.sticker
+        ? `<img class="sticker-img" src="${opts.sticker}" alt="Sticker">`
+        : `<div>${message}</div>`;
+
+    const avatarHTML = opts.sticker
+        ? ''
+        : `<div class="avatar">${avatar}</div>`;
+
     item.innerHTML = `
         <div class="message-top">
-            <div class="avatar">${avatar}</div>
+            ${avatarHTML}
             <div>
                 <strong>${username}</strong>
                 ${replyHTML}
-                <div>${message}</div>
+                ${contentHTML}
                 <div class="timestamp">${timestamp}</div>
             </div>
         </div>
+
         <div class="message-reactions"></div>
         <!-- Emoji picker (hover) -->
         <div class="emoji-picker">
@@ -499,6 +515,7 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         <!-- Reply button (hover) -->
         <button class="btn-reply-msg" title="Reply">↩ Reply</button>
     `;
+
 
     // Emoji picker: send reaction to server
     item.querySelectorAll('.emoji-btn').forEach(btn => {
@@ -516,6 +533,25 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
     item.querySelector('.btn-reply-msg').addEventListener('click', () => {
         setReplyTo(msgId, username, message);
     });
+
+    // Scroll to bottom when sticker loads; show error fallback if decoding fails
+    const imgEl = item.querySelector('.sticker-img');
+    if (imgEl) {
+        imgEl.onload = () => {
+            messages.scrollTop = messages.scrollHeight;
+        };
+        imgEl.onerror = () => {
+            const errSpan = document.createElement('span');
+            errSpan.style.color = '#ff6b6b';
+            errSpan.style.fontSize = '12px';
+            errSpan.style.fontStyle = 'italic';
+            errSpan.style.display = 'block';
+            errSpan.style.marginTop = '6px';
+            errSpan.textContent = '⚠️ Failed to load sticker';
+            imgEl.replaceWith(errSpan);
+            messages.scrollTop = messages.scrollHeight;
+        };
+    }
 
     messages.appendChild(item);
     messages.scrollTop = messages.scrollHeight;
@@ -1180,4 +1216,262 @@ form.addEventListener('submit', () => {
         // and it will be included on the next message emit via the closure.
     });
 })();
+
+/* ============================================================
+   FEATURE: CUSTOM STICKERS (Version 1)
+   Manages image validation, Cropper.js modal setup, preview,
+   compression, and Socket.IO real-time transmission.
+============================================================ */
+(function initCustomStickers() {
+    const btnSticker = document.getElementById('btn-sticker-picker');
+    const fileInput  = document.getElementById('sticker-file-input');
+
+    if (!btnSticker || !fileInput) return;
+
+    // Click trigger for file input (one listener bound)
+    btnSticker.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // File selection handler
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (validateStickerFile(file)) {
+            openStickerCropper(file);
+        } else {
+            fileInput.value = ''; // Reset input on validation failure
+        }
+    });
+
+    // Validate image rules
+    function validateStickerFile(file) {
+        // Max size: 10 MB
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showToast('❌ File size exceeds 10 MB limit.');
+            return false;
+        }
+
+        const name = file.name.toLowerCase();
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+        const rejectedExtensions = ['.gif', '.svg', '.exe', '.bat', '.cmd', '.dll', '.sh', '.js'];
+
+        const hasAllowed = allowedExtensions.some(ext => name.endsWith(ext));
+        const hasRejected = rejectedExtensions.some(ext => name.endsWith(ext));
+
+        if (hasRejected || !hasAllowed) {
+            showToast('❌ Invalid format. Only JPG, JPEG, PNG, and WebP are allowed.');
+            return false;
+        }
+
+        const allowedMime = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedMime.includes(file.type)) {
+            showToast('❌ Invalid image format. Select a valid JPG, PNG, or WebP.');
+            return false;
+        }
+
+        return true;
+    }
+
+    let cropperInstance = null;
+    let sourceObjectURL = null;
+
+    // Load image via Object URL and open Cropper modal
+    function openStickerCropper(file) {
+        // Clean up previous Object URL if any
+        if (sourceObjectURL) {
+            URL.revokeObjectURL(sourceObjectURL);
+            sourceObjectURL = null;
+        }
+
+        sourceObjectURL = URL.createObjectURL(file);
+        const cropModal = document.getElementById('sticker-crop-modal');
+        const cropImage = document.getElementById('sticker-crop-image');
+
+        cropImage.src = sourceObjectURL;
+        cropModal.classList.remove('hidden');
+
+        // Revoke the object URL after image loads/fails to free memory
+        cropImage.onload = () => {
+            if (sourceObjectURL) {
+                URL.revokeObjectURL(sourceObjectURL);
+                sourceObjectURL = null;
+            }
+        };
+
+        cropImage.onerror = () => {
+            showToast('❌ Failed to decode image.');
+            closeStickerCropper();
+        };
+
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+
+        // Initialize Cropper.js (simple square, allow zoom/pan/move)
+        cropperInstance = new Cropper(cropImage, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 0.8,
+            restore: false,
+            guides: false,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+            zoomable: true,
+            rotatable: false,
+            scalable: false
+        });
+    }
+
+    function closeStickerCropper() {
+        document.getElementById('sticker-crop-modal').classList.add('hidden');
+        fileInput.value = '';
+        if (sourceObjectURL) {
+            URL.revokeObjectURL(sourceObjectURL);
+            sourceObjectURL = null;
+        }
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+    }
+
+    // Cancel Crop button listener
+    document.getElementById('btn-crop-cancel').addEventListener('click', closeStickerCropper);
+
+    // Confirm Crop button listener (performs resize, compression, and WebP check)
+    document.getElementById('btn-crop-confirm').addEventListener('click', () => {
+        if (!cropperInstance) return;
+
+        const canvas = cropperInstance.getCroppedCanvas({
+            width: 512,
+            height: 512,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
+        });
+
+        if (!canvas) {
+            showToast('❌ Failed to crop image.');
+            return;
+        }
+
+        // Check if WebP is supported by verifying the generated output signature
+        let mimeType = 'image/webp';
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL(mimeType, quality);
+
+        if (!dataUrl.startsWith('data:image/webp')) {
+            mimeType = 'image/png';
+            dataUrl = canvas.toDataURL(mimeType);
+        }
+
+        // Transmit size check: max 250 KB
+        let sizeBytes = Math.round((dataUrl.length - 22) * 3 / 4);
+
+        if (sizeBytes > 250 * 1024 && mimeType === 'image/webp') {
+            quality = 0.6;
+            dataUrl = canvas.toDataURL(mimeType, quality);
+            sizeBytes = Math.round((dataUrl.length - 22) * 3 / 4);
+        }
+
+        // Secondary fallback to scale down resolution if file remains > 250 KB
+        if (sizeBytes > 250 * 1024) {
+            const shrink = document.createElement('canvas');
+            shrink.width = 384;
+            shrink.height = 384;
+            const ctx = shrink.getContext('2d');
+            ctx.drawImage(canvas, 0, 0, 384, 384);
+            dataUrl = shrink.toDataURL(mimeType, 0.7);
+            sizeBytes = Math.round((dataUrl.length - 22) * 3 / 4);
+        }
+
+        if (sizeBytes > 250 * 1024) {
+            showToast('❌ Failed to compress sticker below 250 KB.');
+            closeStickerCropper();
+            return;
+        }
+
+        // Transition to preview screen
+        const previewModal = document.getElementById('sticker-preview-modal');
+        const previewImg   = document.getElementById('sticker-preview-img');
+
+        previewImg.src = dataUrl;
+        previewModal.classList.remove('hidden');
+
+        // Hide crop modal and clean up cropper and object URLs
+        document.getElementById('sticker-crop-modal').classList.add('hidden');
+        if (sourceObjectURL) {
+            URL.revokeObjectURL(sourceObjectURL);
+            sourceObjectURL = null;
+        }
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+    });
+
+    // Cancel Preview button listener
+    document.getElementById('btn-preview-cancel').addEventListener('click', () => {
+        document.getElementById('sticker-preview-modal').classList.add('hidden');
+        fileInput.value = '';
+    });
+
+    // Send Preview button listener (transmits via Socket.IO)
+    document.getElementById('btn-preview-send').addEventListener('click', () => {
+        const previewImg = document.getElementById('sticker-preview-img');
+        const dataUrl = previewImg.src;
+
+        if (!dataUrl) return;
+
+        const sizeBytes = Math.round((dataUrl.length - 22) * 3 / 4);
+        if (sizeBytes > 250 * 1024) {
+            showToast('❌ Sticker file size is too large (max 250 KB).');
+            return;
+        }
+
+        const timestamp = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
+        const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
+        const payload = {
+            username:  currentUsername,
+            message:   '[Sticker]',
+            sticker:   dataUrl,
+            timestamp: timestamp,
+            messageId: msgId
+        };
+
+        // Attach reply state if present
+        if (replyingTo) {
+            payload.replyTo = replyingTo;
+            setTimeout(clearReplyTo, 50);
+        }
+
+        // Send to server
+        socket.emit('chat message', payload);
+
+        // Render locally instantly
+        addMessage(currentUsername, '[Sticker]', timestamp, true, {
+            replyTo:   payload.replyTo,
+            messageId: msgId,
+            sticker:   dataUrl
+        });
+
+        // Hide modal and clear input
+        document.getElementById('sticker-preview-modal').classList.add('hidden');
+        fileInput.value = '';
+    });
+
+}());
+
 
