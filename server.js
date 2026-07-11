@@ -8,11 +8,16 @@ const app = express();
 
 const server = http.createServer(app);
 
-const io = new Server(server);
+const io = new Server(server, {
+    maxHttpBufferSize: 15e6  // Increase limit to 15 MB to handle 10 MB base64 files
+});
+
 
 app.use(express.static("public"));
 
 const users = {};
+const disconnectTimeouts = {};
+
 
 /* ============================================================
    ROOMS — in-memory store
@@ -42,14 +47,20 @@ io.on("connection", (socket) => {
     console.log("A user connected");
 
     /* ---- Join existing room directly (used by Join Room flow) ---- */
-    socket.on("new user", ({ username, room, avatar }) => {
+    socket.on("new user", ({ username, room, avatar, sessionToken }) => {
 
         users[socket.id] = {
             username,
             avatar: avatar || '👾',
             room,
-            isAdmin: false   // admin is set only via create-room
+            isAdmin: false,   // admin is set only via create-room
+            sessionToken
         };
+
+        const r = rooms[room];
+        if (r && sessionToken) {
+            r.approvedSessions.add(sessionToken);
+        }
 
         socket.join(room);
 
@@ -63,7 +74,7 @@ io.on("connection", (socket) => {
     });
 
     /* ---- Create a new room (admin flow) ---- */
-    socket.on("create-room", ({ username, avatar, roomName, roomType }) => {
+    socket.on("create-room", ({ username, avatar, roomName, roomType, sessionToken }) => {
 
         const code = generateRoomCode();
 
@@ -78,6 +89,7 @@ io.on("connection", (socket) => {
             pendingRequests: [],   // { socketId, username, avatar }
             mutedUsers:    new Set(), // Set of muted socket IDs
             reactions:     {},        // { messageId: { emoji: { count, users[] } } }
+            approvedSessions: new Set(),
             // Default permissions (Feature 12 — admin can toggle)
             permissions: {
                 allowImages:      true,
@@ -92,12 +104,17 @@ io.on("connection", (socket) => {
             }
         };
 
+        if (sessionToken) {
+            rooms[code].approvedSessions.add(sessionToken);
+        }
+
         // Register the creator as admin
         users[socket.id] = {
             username,
             avatar: avatar || '👾',
             room:    code,
-            isAdmin: true
+            isAdmin: true,
+            sessionToken
         };
 
         socket.join(code);
@@ -116,7 +133,7 @@ io.on("connection", (socket) => {
 
 
     /* ---- Join Room via code — puts user in waiting room for admin approval ---- */
-    socket.on('join-room-request', ({ username, avatar, code }) => {
+    socket.on('join-room-request', ({ username, avatar, code, sessionToken }) => {
 
         const room = rooms[code];
 
@@ -125,6 +142,22 @@ io.on("connection", (socket) => {
             socket.emit('join-error', {
                 message: 'Room not found. Check the code and try again.'
             });
+            return;
+        }
+
+        // Check if session was already approved in this room (reconnection safety)
+        if (sessionToken && room.approvedSessions && room.approvedSessions.has(sessionToken)) {
+            users[socket.id] = {
+                username,
+                avatar: avatar || '👾',
+                room:    code,
+                isAdmin: false,
+                sessionToken
+            };
+            socket.join(code);
+            socket.emit('approved', { code, name: room.name });
+            socket.to(code).emit('system message', `${username} joined the room`);
+            updateUsers(code);
             return;
         }
 
@@ -143,7 +176,10 @@ io.on("connection", (socket) => {
 
         /* -- Feature 11: Public rooms skip the waiting room -- */
         if (room.type === 'public') {
-            users[socket.id] = { username, avatar: avatar || '👾', room: code, isAdmin: false };
+            users[socket.id] = { username, avatar: avatar || '👾', room: code, isAdmin: false, sessionToken };
+            if (sessionToken) {
+                room.approvedSessions.add(sessionToken);
+            }
             socket.join(code);
             socket.emit('join-approved', { code, name: room.name });
             socket.to(code).emit('system message', `${username} joined the room`);
@@ -152,7 +188,7 @@ io.on("connection", (socket) => {
         }
 
         // Approval / Private: add to pending list
-        const requestEntry = { socketId: socket.id, username, avatar: avatar || '👾' };
+        const requestEntry = { socketId: socket.id, username, avatar: avatar || '👾', sessionToken };
         room.pendingRequests.push(requestEntry);
 
         // Tell the requester to sit tight
@@ -187,8 +223,13 @@ io.on("connection", (socket) => {
             username: pending.username,
             avatar:   pending.avatar,
             room:     code,
-            isAdmin:  false
+            isAdmin:  false,
+            sessionToken: pending.sessionToken
         };
+
+        if (pending.sessionToken) {
+            room.approvedSessions.add(pending.sessionToken);
+        }
 
         targetSocket.join(code);
 
@@ -202,6 +243,7 @@ io.on("connection", (socket) => {
         updateUsers(code);
 
     });
+
 
     /* ---- Admin rejects a pending user ---- */
     socket.on('reject-user', ({ targetSocketId, code }) => {
@@ -426,6 +468,14 @@ io.on("connection", (socket) => {
 
 
     socket.on("chat message", (data) => {
+        console.log('[Server Socket] Received "chat message" from client:', {
+            username: data.username,
+            message: data.message,
+            hasImage: !!data.image,
+            imageLength: data.image ? data.image.length : 0,
+            hasFile: !!data.file,
+            fileSize: data.file ? data.file.size : 0
+        });
 
         const user = users[socket.id];
 
@@ -438,6 +488,7 @@ io.on("connection", (socket) => {
                 return;
             }
 
+            console.log(`[Server Socket] Broadcasting "chat message" to room ${user.room}`);
             io.to(user.room).emit(
                 "chat message",
                 data
@@ -446,6 +497,7 @@ io.on("connection", (socket) => {
         }
 
     });
+
 
     socket.on("typing", (username) => {
 
@@ -462,57 +514,55 @@ io.on("connection", (socket) => {
 
     });
 
+    socket.on("rejoin", ({ username, room, sessionToken }) => {
+        const oldSocketId = Object.keys(users).find(id => {
+            const u = users[id];
+            return u.room === room && u.username === username && u.sessionToken === sessionToken;
+        });
+
+        if (oldSocketId) {
+            // Cancel the disconnect timeout
+            if (disconnectTimeouts[oldSocketId]) {
+                clearTimeout(disconnectTimeouts[oldSocketId]);
+                delete disconnectTimeouts[oldSocketId];
+            }
+
+            // Transfer user session to new socket.id
+            users[socket.id] = users[oldSocketId];
+            if (oldSocketId !== socket.id) {
+                delete users[oldSocketId];
+            }
+
+            // Update admin ID if needed
+            const r = rooms[room];
+            if (r && r.adminSocketId === oldSocketId) {
+                r.adminSocketId = socket.id;
+            }
+
+            socket.join(room);
+            updateUsers(room);
+
+            console.log(`User ${username} rejoined room ${room} successfully (Session restored)`);
+            socket.emit("rejoined-successfully");
+        } else {
+            console.log(`Rejoin failed for user ${username} in room ${room} (expired or not found)`);
+            socket.emit("rejoin-failed");
+        }
+    });
+
     socket.on("disconnect", () => {
 
         const user = users[socket.id];
 
         if (user) {
-
             const roomCode = user.room;
-            const wasAdmin = user.isAdmin;
+            const socketId = socket.id;
 
-            io.to(roomCode).emit("system message", `${user.username} left the room`);
-            delete users[socket.id];
-
-            // Find remaining members in this room
-            const remaining = Object.entries(users)
-                .filter(([, u]) => u.room === roomCode);
-
-            if (remaining.length === 0) {
-
-                // Room is now empty — delete it
-                if (rooms[roomCode]) {
-                    delete rooms[roomCode];
-                    console.log(`Room ${roomCode} deleted (empty)`);
-                }
-
-            } else if (wasAdmin && rooms[roomCode]) {
-
-                /* ---- Feature 9: Auto-Admin Reassignment ---- */
-                const [newAdminId, newAdminUser] = remaining[0];
-
-                newAdminUser.isAdmin = true;
-                rooms[roomCode].adminSocketId = newAdminId;
-                rooms[roomCode].mutedUsers.delete(newAdminId); // auto-unmute new admin
-
-                const newAdminSocket = io.sockets.sockets.get(newAdminId);
-                if (newAdminSocket) {
-                    newAdminSocket.emit('you-are-admin', {
-                        code: roomCode,
-                        name: rooms[roomCode].name
-                    });
-                }
-
-                io.to(roomCode).emit('system message',
-                    `👑 ${newAdminUser.username} is now the room admin.`);
-
-                updateUsers(roomCode);
-
-            } else {
-
-                updateUsers(roomCode);
-
-            }
+            // Start a grace period of 10 seconds before clean up to allow reconnecting
+            disconnectTimeouts[socketId] = setTimeout(() => {
+                cleanupUserSession(socketId, user);
+                delete disconnectTimeouts[socketId];
+            }, 10000);
 
         } else {
 
@@ -535,6 +585,7 @@ io.on("connection", (socket) => {
         }
 
     });
+
 
 });
 
@@ -561,6 +612,60 @@ function updateUsers(room) {
     io.to(room).emit("users list", roomUsers);
 
 }
+
+function cleanupUserSession(socketId, user) {
+    if (!user) return;
+    const roomCode = user.room;
+    const wasAdmin = user.isAdmin;
+
+    // Check if the user has already reconnected on another socket ID
+    // If they did, their username is still present in users with a different socket.id
+    const hasReconnected = Object.entries(users).some(([id, u]) => {
+        return u.room === roomCode && u.username === user.username && u.sessionToken === user.sessionToken;
+    });
+    if (hasReconnected) {
+        console.log(`Grace period expired for ${user.username}, but session was already restored on a new socket.`);
+        return;
+    }
+
+    io.to(roomCode).emit("system message", `${user.username} left the room`);
+    delete users[socketId];
+
+    // Find remaining members in this room
+    const remaining = Object.entries(users)
+        .filter(([, u]) => u.room === roomCode);
+
+    if (remaining.length === 0) {
+        // Room is now empty — delete it
+        if (rooms[roomCode]) {
+            delete rooms[roomCode];
+            console.log(`Room ${roomCode} deleted (empty)`);
+        }
+    } else if (wasAdmin && rooms[roomCode]) {
+        /* ---- Feature 9: Auto-Admin Reassignment ---- */
+        const [newAdminId, newAdminUser] = remaining[0];
+
+        newAdminUser.isAdmin = true;
+        rooms[roomCode].adminSocketId = newAdminId;
+        rooms[roomCode].mutedUsers.delete(newAdminId); // auto-unmute new admin
+
+        const newAdminSocket = io.sockets.sockets.get(newAdminId);
+        if (newAdminSocket) {
+            newAdminSocket.emit('you-are-admin', {
+                code: roomCode,
+                name: rooms[roomCode].name
+            });
+        }
+
+        io.to(roomCode).emit('system message',
+            `👑 ${newAdminUser.username} is now the room admin.`);
+
+        updateUsers(roomCode);
+    } else {
+        updateUsers(roomCode);
+    }
+}
+
 
 const PORT = process.env.PORT || 3000;
 

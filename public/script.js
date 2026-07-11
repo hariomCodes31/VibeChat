@@ -1,4 +1,42 @@
-const socket = io();
+const socket = io({
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000
+});
+
+// Persistent session token stored in sessionStorage
+let sessionToken = sessionStorage.getItem('vibe_session_token');
+if (!sessionToken) {
+    sessionToken = 'token_' + Math.random().toString(36).slice(2, 9);
+    sessionStorage.setItem('vibe_session_token', sessionToken);
+}
+
+// Queue system to ensure emits work even if socket disconnected
+function safeEmit(event, data) {
+    if (socket.connected) {
+        socket.emit(event, data);
+    } else {
+        console.log(`Socket disconnected. Queueing event "${event}"...`);
+        socket.once('connect', () => {
+            console.log(`Socket connected. Processing queued event "${event}"...`);
+            socket.emit(event, data);
+        });
+        socket.connect();
+    }
+}
+
+// Force re-connect when returning to the tab (safeguard for Android suspend mode)
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        if (!socket.connected) {
+            console.log("Tab is visible but socket is disconnected. Forcing socket connection...");
+            socket.connect();
+        }
+    }
+});
+
 
 /* ============================================================
    HAMBURGER SIDEBAR DRAWER — mobile only
@@ -96,7 +134,7 @@ form.addEventListener("submit", (e) => {
 
     if (!joined && username) {
 
-        socket.emit("new user", { username, room });
+        safeEmit("new user", { username, room, sessionToken });
 
         joined = true;
 
@@ -122,7 +160,7 @@ form.addEventListener("submit", (e) => {
             payload.replyTo = replyingTo;
         }
 
-        socket.emit("chat message", payload);
+        safeEmit("chat message", payload);
 
         addMessage(username, message, timestamp, true, {
             replyTo: replyingTo,
@@ -134,6 +172,7 @@ form.addEventListener("submit", (e) => {
         messageInput.value = "";
 
     }
+
 
 });
 
@@ -149,7 +188,46 @@ messageInput.addEventListener("input", () => {
 });
 
 
+// Automatically rejoin if we reconnect or connect
+socket.on('connect', () => {
+    console.log("Socket connected! ID:", socket.id);
+    if (joined && currentUsername && currentRoom) {
+        console.log("Session active. Attempting rejoin for", currentUsername, "in room", currentRoom);
+        socket.emit("rejoin", {
+            username: currentUsername,
+            room: currentRoom,
+            sessionToken: sessionToken
+        });
+    }
+});
+
+// Rejoin succeeded
+socket.on("rejoined-successfully", () => {
+    console.log("Session rejoined and restored successfully.");
+});
+
+// Rejoin failed (grace period expired), rejoin clean
+socket.on("rejoin-failed", () => {
+    console.log("Session rejoin failed. Rejoining cleanly...");
+    if (joined && currentUsername && currentRoom) {
+        socket.emit("new user", {
+            username: currentUsername,
+            room: currentRoom,
+            avatar: currentAvatar,
+            sessionToken: sessionToken
+        });
+    }
+});
+
+
 socket.on("chat message", (data) => {
+    console.log('[Socket] Client received "chat message":', {
+        username: data.username,
+        message: data.message,
+        hasImage: !!data.image,
+        imageLength: data.image ? data.image.length : 0,
+        hasFile: !!data.file
+    });
 
     // Only render messages from OTHER users (we already rendered ours locally)
     if (data.username !== currentUsername) {
@@ -163,6 +241,7 @@ socket.on("chat message", (data) => {
     }
 
 });
+
 
 
 
@@ -641,9 +720,11 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         const sharedImg = item.querySelector('.shared-img');
         if (sharedImg) {
             sharedImg.onload = () => {
+                console.log(`[Image Render] Image loaded successfully in DOM: msgId=${msgId}`);
                 messages.scrollTop = messages.scrollHeight;
             };
             sharedImg.onerror = () => {
+                console.error(`[Image Render] Failed to load image in DOM: msgId=${msgId}`);
                 const errSpan = document.createElement('span');
                 errSpan.style.color = '#ff6b6b';
                 errSpan.style.fontSize = '12px';
@@ -655,6 +736,7 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
                 messages.scrollTop = messages.scrollHeight;
             };
         }
+
     }
 
     messages.appendChild(item);
@@ -1194,7 +1276,7 @@ function requestNotificationPermission() {
        path that bypasses join-room-request.
     -------------------------------------------------------- */
     function enterChat(username, room) {
-        socket.emit('new user', { username, room, avatar: currentAvatar });
+        safeEmit('new user', { username, room, avatar: currentAvatar, sessionToken });
         transitionToChat(username, room, room, false);
     }
 
@@ -1219,13 +1301,15 @@ function requestNotificationPermission() {
         const roomType = activeTypeBtn ? activeTypeBtn.dataset.type : 'approval';
 
         // Emit to server — server generates code, emits room-created back
-        socket.emit('create-room', {
+        safeEmit('create-room', {
             username,
             avatar:   currentAvatar,
             roomName,
-            roomType
+            roomType,
+            sessionToken
         });
     });
+
 
     // Allow Enter key in room name field
     roomNameInput.addEventListener('keydown', (e) => {
@@ -1253,12 +1337,14 @@ function requestNotificationPermission() {
         currentUsername = username;
 
         // Emit validated join request to server
-        socket.emit('join-room-request', {
+        safeEmit('join-room-request', {
             username,
             avatar: currentAvatar,
-            code
+            code,
+            sessionToken
         });
     });
+
 
     // Allow Enter key in room code field
     roomCodeInput.addEventListener('keydown', (e) => {
@@ -1545,7 +1631,8 @@ let currentPermissions = {
         }
 
         // Send to server
-        socket.emit('chat message', payload);
+        safeEmit('chat message', payload);
+
 
         // Render locally instantly
         addMessage(currentUsername, '[Sticker]', timestamp, true, {
@@ -1663,6 +1750,8 @@ function formatFileSize(bytes) {
             return;
         }
 
+        console.log(`[File Share] File selected: name="${file.name}", size=${file.size} bytes, type="${file.type}"`);
+
         const reader = new FileReader();
         const progressFill = document.getElementById('upload-progress-fill');
         const progressContainer = document.getElementById('upload-progress-container');
@@ -1678,19 +1767,27 @@ function formatFileSize(bytes) {
         };
 
         reader.onloadstart = () => {
+            console.log('[File Share] FileReader load started.');
             if (progressContainer) progressContainer.classList.remove('hidden');
             if (progressFill) progressFill.style.width = '0%';
         };
 
         reader.onloadend = () => {
+            console.log('[File Share] FileReader load ended.');
             setTimeout(() => {
                 if (progressContainer) progressContainer.classList.add('hidden');
                 if (progressFill) progressFill.style.width = '0%';
             }, 800);
         };
 
+        reader.onerror = (err) => {
+            console.error('[File Share] FileReader error:', err);
+        };
+
         reader.onload = function (eData) {
             const dataUrl = eData.target.result;
+            console.log(`[File Share] FileReader success. Base64 length: ${dataUrl.length}`);
+
             const isImage = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].some(
                 mime => file.type === mime || file.name.toLowerCase().endsWith(mime.split('/')[1])
             );
@@ -1733,8 +1830,9 @@ function formatFileSize(bytes) {
                 addMsgOpts.file = payload.file;
             }
 
+            console.log(`[File Share] Emitting payload via Socket.IO for message ID: ${msgId}`);
             // Emit sharing payload via socket
-            socket.emit('chat message', payload);
+            safeEmit('chat message', payload);
 
             // Render local bubble instantly
             addMessage(currentUsername, payload.message, timestamp, true, addMsgOpts);
@@ -1744,6 +1842,7 @@ function formatFileSize(bytes) {
         };
 
         reader.readAsDataURL(file);
+
     }
 })();
 
