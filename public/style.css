@@ -2159,5 +2159,334 @@ input:focus-visible {
     }
 }
 
+/* Brief glow highlight when navigating to a replied message */
+.message.reply-highlight {
+    animation: replyFlash 1.5s ease-out;
+}
+
+@keyframes replyFlash {
+    0% {
+        box-shadow: 0 0 25px rgba(0, 255, 204, 0.95);
+        border-color: rgba(0, 255, 204, 1);
+        transform: scale(1.04);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ==========================================================
+   FEATURE: IMAGE & FILE SHARING (Version 1)
+========================================================== */
+#btn-attachment-picker {
+    width: 50px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    background-image: none;
+    box-shadow: none;
+}
+
+#btn-attachment-picker:hover {
+    background: rgba(0, 255, 204, 0.12);
+    border-color: rgba(0, 255, 204, 0.5);
+    transform: scale(1.05);
+}
+
+/* Upload Progress Bar */
+#upload-progress-container {
+    background: rgba(15, 15, 25, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
+}
+
+#upload-progress-label {
+    font-size: 11px;
+    font-weight: bold;
+    color: #00ffcc;
+    letter-spacing: 0.5px;
+}
+
+.progress-bar-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00ffcc, #00b4d8);
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+    transition: width 0.15s ease-out;
+}
+
+/* Drag and drop overlay */
+.chat-container {
+    position: relative;
+}
+
+#drag-drop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2500;
+    background: rgba(10, 10, 20, 0.9);
+    border: 3px dashed rgba(0, 255, 204, 0.45);
+    border-radius: 20px;
+    margin: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s ease;
+    pointer-events: none; /* Make sure it doesn't block window drag events */
+}
+
+.drag-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: white;
+}
+
+.dd-icon {
+    font-size: 48px;
+    animation: bounce 1s infinite alternate;
+}
+
+.dd-text {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+}
+
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+}
+
+/* WhatsApp/Discord style floating image messages */
+.message.image-message {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 4px 6px !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    width: fit-content;
+    max-width: 360px !important;
+}
+
+.message.image-message:hover {
+    transform: none; /* Disable hover scale movement */
+}
+
+/* Redesigned Shared image layout bounds */
+.shared-image-wrapper {
+    margin-top: 4px;
+    cursor: pointer;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 360px;
+    max-height: 360px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: fit-content;
+}
+
+.shared-image-wrapper:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.35);
+}
+
+.shared-img {
+    display: block;
+    max-width: 100%;
+    max-height: 360px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+/* Ensure reply quote inside an image message fits width */
+.message.image-message .reply-quote {
+    margin-bottom: 4px;
+    max-width: 360px;
+}
+
+
+/* File Sharing Download Card */
+.file-share-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-top: 6px;
+    max-width: 280px;
+    box-sizing: border-box;
+    backdrop-filter: blur(8px);
+}
+
+.file-share-icon {
+    font-size: 26px;
+    flex-shrink: 0;
+}
+
+.file-share-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0; /* Let it wrap/truncate */
+}
+
+.file-share-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-share-size {
+    font-size: 10px;
+    color: #bbb;
+}
+
+.btn-file-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px !important;
+    height: 30px;
+    padding: 0 10px !important;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #00ffcc;
+    border: 1px solid rgba(0, 255, 204, 0.3);
+    background: rgba(0, 255, 204, 0.1);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-file-download:hover {
+    background: rgba(0, 255, 204, 0.25);
+    border-color: rgba(0, 255, 204, 0.6);
+    box-shadow: 0 0 12px rgba(0, 255, 204, 0.4);
+}
+
+/* Lightbox Modal */
+.lightbox-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#lightbox-img {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    object-fit: contain;
+}
+
+.btn-lightbox-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-lightbox-close:hover {
+    background: rgba(255, 68, 68, 0.3);
+    border-color: rgba(255, 68, 68, 0.6);
+}
+
+/* Mobile specific overrides */
+@media (max-width: 768px) {
+    .message.image-message {
+        max-width: 80% !important;
+    }
+    .shared-image-wrapper {
+        max-width: 100%;
+        max-height: 80vw;
+    }
+    .shared-img {
+        max-width: 100%;
+        max-height: 80vw;
+    }
+
+    .file-share-card {
+        max-width: 220px;
+        padding: 8px 10px;
+    }
+    .file-share-icon {
+        font-size: 20px;
+    }
+    .file-share-name {
+        font-size: 11.5px;
+    }
+}
+
+
+/* Brief glow highlight when navigating to a replied message */
+.message.reply-highlight {
+    animation: replyFlash 1.5s ease-out;
+}
+
+@keyframes replyFlash {
+    0% {
+        box-shadow: 0 0 25px rgba(0, 255, 204, 0.95);
+        border-color: rgba(0, 255, 204, 1);
+        transform: scale(1.04);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+
 
 

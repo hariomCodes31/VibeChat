@@ -109,15 +109,34 @@ form.addEventListener("submit", (e) => {
             minute: "2-digit"
         });
 
-        socket.emit("chat message", { username, message, timestamp });
+        const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 
-        addMessage(username, message, timestamp, true);
+        const payload = {
+            username,
+            message,
+            timestamp,
+            messageId: msgId
+        };
+
+        if (replyingTo) {
+            payload.replyTo = replyingTo;
+        }
+
+        socket.emit("chat message", payload);
+
+        addMessage(username, message, timestamp, true, {
+            replyTo: replyingTo,
+            messageId: msgId
+        });
+
+        clearReplyTo();
 
         messageInput.value = "";
 
     }
 
 });
+
 
 
 messageInput.addEventListener("input", () => {
@@ -137,11 +156,14 @@ socket.on("chat message", (data) => {
         addMessage(data.username, data.message, data.timestamp, false, {
             replyTo:   data.replyTo,
             messageId: data.messageId,
-            sticker:   data.sticker
+            sticker:   data.sticker,
+            image:     data.image,
+            file:      data.file
         });
     }
 
 });
+
 
 
 socket.on("typing", (msg) => {
@@ -473,6 +495,10 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
     if (opts.sticker) {
         item.classList.add('sticker-message');
     }
+    if (opts.image) {
+        item.classList.add('image-message');
+    }
+
 
     // Stable unique ID for reactions
     const msgId = opts.messageId || (Date.now() + '_' + Math.random().toString(36).slice(2, 7));
@@ -480,12 +506,34 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
 
     const avatar    = username.charAt(0).toUpperCase();
     const replyHTML = opts.replyTo
-        ? `<span class="reply-quote">↩ ${opts.replyTo.username}: ${opts.replyTo.text.slice(0,60)}</span>`
+        ? `<span class="reply-quote" data-target-id="${opts.replyTo.messageId}">↩ ${opts.replyTo.username}: ${opts.replyTo.text.slice(0,60)}</span>`
         : '';
 
-    const contentHTML = opts.sticker
+
+    let contentHTML = opts.sticker
         ? `<img class="sticker-img" src="${opts.sticker}" alt="Sticker">`
         : `<div>${message}</div>`;
+
+    if (opts.image) {
+        contentHTML = `
+            <div class="shared-image-wrapper">
+                <img class="shared-img" src="${opts.image}" alt="Shared Image">
+            </div>
+        `;
+    } else if (opts.file) {
+        const sizeFormatted = formatFileSize(opts.file.size);
+        contentHTML = `
+            <div class="file-share-card">
+                <span class="file-share-icon">📄</span>
+                <div class="file-share-info">
+                    <span class="file-share-name" title="${opts.file.name}">${opts.file.name}</span>
+                    <span class="file-share-size">${sizeFormatted}</span>
+                </div>
+                <a class="btn-file-download" href="${opts.file.data}" download="${opts.file.name}">Download</a>
+            </div>
+        `;
+    }
+
 
     const avatarHTML = opts.sticker
         ? ''
@@ -534,6 +582,29 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         setReplyTo(msgId, username, message);
     });
 
+    // Scroll to original message when clicking reply quote
+    if (opts.replyTo) {
+        const replyQuoteEl = item.querySelector('.reply-quote');
+        if (replyQuoteEl) {
+            replyQuoteEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetId = replyQuoteEl.dataset.targetId;
+                const targetMsg = document.querySelector(`[data-message-id="${targetId}"]`);
+                if (targetMsg) {
+                    targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetMsg.classList.add('reply-highlight');
+                    setTimeout(() => {
+                        targetMsg.classList.remove('reply-highlight');
+                    }, 1500);
+                } else {
+                    showToast('🔍 Original message not found in this session');
+                }
+            });
+            replyQuoteEl.style.cursor = 'pointer';
+        }
+    }
+
+
     // Scroll to bottom when sticker loads; show error fallback if decoding fails
     const imgEl = item.querySelector('.sticker-img');
     if (imgEl) {
@@ -553,7 +624,41 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         };
     }
 
+    // Lightbox image preview triggers
+    if (opts.image) {
+        const wrapper = item.querySelector('.shared-image-wrapper');
+        if (wrapper) {
+            wrapper.addEventListener('click', () => {
+                const lightbox = document.getElementById('image-lightbox-modal');
+                const lightboxImg = document.getElementById('lightbox-img');
+                if (lightbox && lightboxImg) {
+                    lightboxImg.src = opts.image;
+                    lightbox.classList.remove('hidden');
+                }
+            });
+        }
+
+        const sharedImg = item.querySelector('.shared-img');
+        if (sharedImg) {
+            sharedImg.onload = () => {
+                messages.scrollTop = messages.scrollHeight;
+            };
+            sharedImg.onerror = () => {
+                const errSpan = document.createElement('span');
+                errSpan.style.color = '#ff6b6b';
+                errSpan.style.fontSize = '12px';
+                errSpan.style.fontStyle = 'italic';
+                errSpan.style.display = 'block';
+                errSpan.style.marginTop = '6px';
+                errSpan.textContent = '⚠️ Failed to load image';
+                sharedImg.replaceWith(errSpan);
+                messages.scrollTop = messages.scrollHeight;
+            };
+        }
+    }
+
     messages.appendChild(item);
+
     messages.scrollTop = messages.scrollHeight;
 
     // Feature 15: browser notification if tab is not active
@@ -1197,25 +1302,7 @@ let currentPermissions = {
    injected via the users list renderer extension below.
 ============================================================ */
 
-// Extend the form submit to attach replyTo data
-const _origSubmit = form.onsubmit;
-form.addEventListener('submit', () => {
-    // replyingTo is attached to the chat message data in the main submit handler;
-    // here we just clear the indicator after sending
-    if (replyingTo) {
-        // pass replyTo in the socket emit (patch existing handler via monkey-patch)
-        setTimeout(clearReplyTo, 50);
-    }
-}, true);
 
-// Patch the existing submit handler to include replyTo
-(function patchSubmitForReply() {
-    const originalHandler = form.onsubmit;
-    form.addEventListener('submit', (e) => {
-        // The main submit handler already fired; we read replyingTo here
-        // and it will be included on the next message emit via the closure.
-    });
-})();
 
 /* ============================================================
    FEATURE: CUSTOM STICKERS (Version 1)
@@ -1473,5 +1560,207 @@ form.addEventListener('submit', () => {
     });
 
 }());
+
+/* ============================================================
+   FEATURE: IMAGE & FILE SHARING (Version 1)
+   Manages drag-and-drop actions, attachment selection, validation,
+   file progress indicator, and Base64 Socket.IO transfer.
+============================================================ */
+
+// Format file sizes into readable units
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+(function initImageAndFileSharing() {
+    const btnAttachment = document.getElementById('btn-attachment-picker');
+    const attachmentInput = document.getElementById('attachment-file-input');
+
+    if (!btnAttachment || !attachmentInput) return;
+
+    // Click trigger for file input
+    btnAttachment.addEventListener('click', () => {
+        attachmentInput.click();
+    });
+
+    // Native file picker selection handler
+    attachmentInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        handleAttachmentFile(file);
+    });
+
+    // Drag and Drop support
+    const chatContainer = document.querySelector('.chat-container');
+    const dragOverlay = document.getElementById('drag-drop-overlay');
+
+    if (chatContainer && dragOverlay) {
+        let dragCounter = 0;
+
+        chatContainer.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dragOverlay.classList.remove('hidden');
+        });
+
+        chatContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        chatContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                dragOverlay.classList.add('hidden');
+            }
+        });
+
+        chatContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dragOverlay.classList.add('hidden');
+
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                handleAttachmentFile(files[0]);
+            }
+        });
+    }
+
+    // Attachment validation rule checks
+    function validateAttachment(file) {
+        // Size check (max 10 MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showToast('❌ File size exceeds 10 MB limit.');
+            return false;
+        }
+
+        const name = file.name.toLowerCase();
+        const allowedExtensions = [
+            '.jpg', '.jpeg', '.png', '.webp',
+            '.pdf', '.docx', '.pptx', '.xlsx', '.txt', '.zip'
+        ];
+
+        const hasAllowed = allowedExtensions.some(ext => name.endsWith(ext));
+        if (!hasAllowed) {
+            showToast('❌ Format not supported. Select an image (JPG, PNG, WebP) or file (PDF, DOCX, PPTX, XLSX, TXT, ZIP).');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Handles reading the file, updating progress bar, and emitting to Socket.IO
+    function handleAttachmentFile(file) {
+        if (!validateAttachment(file)) {
+            attachmentInput.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        const progressFill = document.getElementById('upload-progress-fill');
+        const progressContainer = document.getElementById('upload-progress-container');
+        const progressLabel = document.getElementById('upload-progress-label');
+
+        if (progressLabel) progressLabel.textContent = `Sharing "${file.name}"...`;
+
+        reader.onprogress = (e) => {
+            if (e.lengthComputable && progressFill) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                progressFill.style.width = pct + '%';
+            }
+        };
+
+        reader.onloadstart = () => {
+            if (progressContainer) progressContainer.classList.remove('hidden');
+            if (progressFill) progressFill.style.width = '0%';
+        };
+
+        reader.onloadend = () => {
+            setTimeout(() => {
+                if (progressContainer) progressContainer.classList.add('hidden');
+                if (progressFill) progressFill.style.width = '0%';
+            }, 800);
+        };
+
+        reader.onload = function (eData) {
+            const dataUrl = eData.target.result;
+            const isImage = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].some(
+                mime => file.type === mime || file.name.toLowerCase().endsWith(mime.split('/')[1])
+            );
+
+            const timestamp = new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
+            const payload = {
+                username:  currentUsername,
+                timestamp: timestamp,
+                messageId: msgId
+            };
+
+            const addMsgOpts = {
+                messageId: msgId
+            };
+
+            // Attach reply indicators if active
+            if (replyingTo) {
+                payload.replyTo = replyingTo;
+                addMsgOpts.replyTo = replyingTo;
+                setTimeout(clearReplyTo, 50);
+            }
+
+            if (isImage) {
+                payload.message = '[Image]';
+                payload.image   = dataUrl;
+                addMsgOpts.image = dataUrl;
+            } else {
+                payload.message = `[File] ${file.name}`;
+                payload.file = {
+                    name: file.name,
+                    size: file.size,
+                    data: dataUrl
+                };
+                addMsgOpts.file = payload.file;
+            }
+
+            // Emit sharing payload via socket
+            socket.emit('chat message', payload);
+
+            // Render local bubble instantly
+            addMessage(currentUsername, payload.message, timestamp, true, addMsgOpts);
+
+            // Reset input values
+            attachmentInput.value = '';
+        };
+
+        reader.readAsDataURL(file);
+    }
+})();
+
+// Lightbox modal trigger setup
+(function initLightbox() {
+    const lightbox = document.getElementById('image-lightbox-modal');
+    const closeBtn = document.getElementById('btn-lightbox-close');
+    if (lightbox) {
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox || e.target === closeBtn) {
+                lightbox.classList.add('hidden');
+                const lightboxImg = document.getElementById('lightbox-img');
+                if (lightboxImg) lightboxImg.src = '';
+            }
+        });
+    }
+})();
+
 
 
