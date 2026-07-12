@@ -91,6 +91,7 @@ let isRoomAdmin     = false; // whether this client is the room admin
 let isMuted         = false; // whether this client is currently muted
 let joined = false;          // has the socket joined the room yet?
 
+
 const form =
     document.getElementById("chat-form");
 
@@ -226,7 +227,8 @@ socket.on("chat message", (data) => {
         message: data.message,
         hasImage: !!data.image,
         imageLength: data.image ? data.image.length : 0,
-        hasFile: !!data.file
+        hasFile: !!data.file,
+        hasVideo: !!data.video
     });
 
     // Only render messages from OTHER users (we already rendered ours locally)
@@ -236,7 +238,8 @@ socket.on("chat message", (data) => {
             messageId: data.messageId,
             sticker:   data.sticker,
             image:     data.image,
-            file:      data.file
+            file:      data.file,
+            video:     data.video
         });
     }
 
@@ -577,6 +580,9 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
     if (opts.image) {
         item.classList.add('image-message');
     }
+    if (opts.video) {
+        item.classList.add('video-message');
+    }
 
 
     // Stable unique ID for reactions
@@ -597,6 +603,43 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
         contentHTML = `
             <div class="shared-image-wrapper">
                 <img class="shared-img" src="${opts.image}" alt="Shared Image">
+            </div>
+        `;
+    } else if (opts.video) {
+        const sizeFormatted = formatFileSize(opts.video.filesize);
+        
+        let durationFormatted = '';
+        if (opts.video.duration) {
+            const secs = Math.floor(opts.video.duration);
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            const s = secs % 60;
+            if (h > 0) {
+                durationFormatted = `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+            } else {
+                durationFormatted = `${m}:${s < 10 ? '0' : ''}${s}`;
+            }
+            durationFormatted = `<span class="video-duration-tag" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; pointer-events: none; z-index: 2;">${durationFormatted}</span>`;
+        }
+
+        const posterAttr = opts.video.thumbnailUrl ? `poster="${opts.video.thumbnailUrl}"` : '';
+
+        contentHTML = `
+            <div class="video-share-card">
+                <div class="video-player-wrapper" style="position: relative; width: 100%; border-radius: 12px 12px 0 0; overflow: hidden; background: #000;">
+                    <video class="shared-video" controls playsinline preload="metadata" ${posterAttr} style="display: block; width: 100%; max-height: 270px; object-fit: contain;">
+                        <source src="${opts.video.url}" type="${opts.video.mimeType || 'video/mp4'}">
+                        Your browser does not support the video tag.
+                    </video>
+                    ${durationFormatted}
+                </div>
+                <div class="video-share-info">
+                    <div class="video-share-meta">
+                        <span class="video-share-name" title="${opts.video.filename}">${opts.video.filename}</span>
+                        <span class="video-share-size">${sizeFormatted}</span>
+                    </div>
+                    <a class="btn-video-download" href="${opts.video.url}" download="${opts.video.filename}">📥 Download</a>
+                </div>
             </div>
         `;
     } else if (opts.file) {
@@ -736,8 +779,32 @@ function addMessage(username, message, timestamp, isMine, opts = {}) {
                 messages.scrollTop = messages.scrollHeight;
             };
         }
-
     }
+
+    if (opts.video) {
+        const sharedVideo = item.querySelector('.shared-video');
+        if (sharedVideo) {
+            sharedVideo.addEventListener('loadeddata', () => {
+                console.log(`[Video Render] Video loaded data successfully in DOM: msgId=${msgId}`);
+                messages.scrollTop = messages.scrollHeight;
+            });
+            sharedVideo.addEventListener('error', (e) => {
+                console.error(`[Video Render] Failed to load video in DOM: msgId=${msgId}`, e);
+                const errSpan = document.createElement('span');
+                errSpan.className = 'video-load-error';
+                errSpan.style.color = '#ff6b6b';
+                errSpan.style.fontSize = '12px';
+                errSpan.style.fontStyle = 'italic';
+                errSpan.style.display = 'block';
+                errSpan.style.marginTop = '6px';
+                errSpan.textContent = '⚠️ Video format or codec not supported by your browser';
+                sharedVideo.replaceWith(errSpan);
+                messages.scrollTop = messages.scrollHeight;
+            });
+        }
+    }
+
+
 
     messages.appendChild(item);
 
@@ -1663,14 +1730,98 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+
+
+
+// Helper function to extract video duration client-side and immediately revoke Object URL to prevent leaks
+function getVideoDuration(file) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.muted = true;
+        video.playsInline = true;
+        
+        const objectUrl = URL.createObjectURL(file);
+        video.src = objectUrl;
+        
+        video.onloadedmetadata = () => {
+            const duration = video.duration;
+            URL.revokeObjectURL(objectUrl);
+            resolve(duration);
+        };
+        
+        video.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(0);
+        };
+    });
+}
+
+// Helper function to generate video thumbnail client-side and immediately revoke Object URL
+function generateVideoThumbnail(file) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.preload = 'auto';
+        video.muted = true;
+        video.playsInline = true;
+        
+        const objectUrl = URL.createObjectURL(file);
+        video.src = objectUrl;
+        
+        video.onloadeddata = () => {
+            video.currentTime = Math.min(1, video.duration / 2 || 0.1);
+        };
+        
+        video.onseeked = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const maxThumbDim = 240;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+                if (width > height) {
+                    if (width > maxThumbDim) {
+                        height = Math.round((height * maxThumbDim) / width);
+                        width = maxThumbDim;
+                    }
+                } else {
+                    if (height > maxThumbDim) {
+                        width = Math.round((width * maxThumbDim) / height);
+                        height = maxThumbDim;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, width, height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                URL.revokeObjectURL(objectUrl);
+                resolve(dataUrl);
+            } catch (err) {
+                console.error('[Thumbnail generation error]:', err);
+                URL.revokeObjectURL(objectUrl);
+                resolve('');
+            }
+        };
+        
+        video.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve('');
+        };
+    });
+}
+
 (function initImageAndFileSharing() {
     const btnAttachment = document.getElementById('btn-attachment-picker');
     const attachmentInput = document.getElementById('attachment-file-input');
 
     if (!btnAttachment || !attachmentInput) return;
 
+    let currentUploadXhr = null;
+
     // Click trigger for file input
     btnAttachment.addEventListener('click', () => {
+        if (currentUploadXhr) return; // ignore picker clicks while active upload
         attachmentInput.click();
     });
 
@@ -1721,32 +1872,230 @@ function formatFileSize(bytes) {
 
     // Attachment validation rule checks
     function validateAttachment(file) {
-        // Size check (max 10 MB)
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            showToast('❌ File size exceeds 10 MB limit.');
-            return false;
-        }
-
         const name = file.name.toLowerCase();
-        const allowedExtensions = [
-            '.jpg', '.jpeg', '.png', '.webp',
-            '.pdf', '.docx', '.pptx', '.xlsx', '.txt', '.zip'
-        ];
+        const isVideo = file.type.startsWith('video/') || ['.mp4', '.webm', '.mov', '.mkv', '.avi'].some(ext => name.endsWith(ext));
 
-        const hasAllowed = allowedExtensions.some(ext => name.endsWith(ext));
-        if (!hasAllowed) {
-            showToast('❌ Format not supported. Select an image (JPG, PNG, WebP) or file (PDF, DOCX, PPTX, XLSX, TXT, ZIP).');
-            return false;
+        if (isVideo) {
+            const maxVideoSize = 100 * 1024 * 1024; // 100 MB
+            if (file.size > maxVideoSize) {
+                showToast('❌ Video size exceeds 100 MB limit.');
+                return false;
+            }
+        } else {
+            const maxSize = 10 * 1024 * 1024; // 10 MB
+            if (file.size > maxSize) {
+                showToast('❌ File size exceeds 10 MB limit.');
+                return false;
+            }
+
+            const allowedExtensions = [
+                '.jpg', '.jpeg', '.png', '.webp',
+                '.pdf', '.docx', '.pptx', '.xlsx', '.txt', '.zip'
+            ];
+
+            const hasAllowed = allowedExtensions.some(ext => name.endsWith(ext));
+            if (!hasAllowed) {
+                showToast('❌ Format not supported. Select an image (JPG, PNG, WebP) or file (PDF, DOCX, PPTX, XLSX, TXT, ZIP).');
+                return false;
+            }
         }
 
         return true;
+    }
+
+    // Helper to lock and unlock input UI during active uploads
+    function setUploadsUIState(uploading) {
+        btnAttachment.disabled = uploading;
+        attachmentInput.disabled = uploading;
+        const chatSendBtn = document.getElementById('btn-chat-send');
+        const msgInput = document.getElementById('message-input');
+        if (chatSendBtn) chatSendBtn.disabled = uploading;
+        if (msgInput) msgInput.disabled = uploading;
+    }
+
+    // HTTP Video Upload operation using XMLHttpRequest
+    function performVideoUpload(file, duration, thumbnailUrl) {
+        const xhr = new XMLHttpRequest();
+        currentUploadXhr = xhr;
+        setUploadsUIState(true);
+
+        const progressFill = document.getElementById('upload-progress-fill');
+        const progressContainer = document.getElementById('upload-progress-container');
+        const progressLabel = document.getElementById('upload-progress-label');
+        const cancelBtn = document.getElementById('btn-cancel-upload');
+
+        if (progressLabel) progressLabel.textContent = `Preparing video...`;
+        if (progressContainer) progressContainer.classList.remove('hidden');
+        if (progressFill) progressFill.style.width = '0%';
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
+
+        let startTime = Date.now();
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                if (progressFill) progressFill.style.width = pct + '%';
+
+                // Calculate speed
+                const elapsedSeconds = (Date.now() - startTime) / 1000;
+                let speedText = '';
+                if (elapsedSeconds > 0) {
+                    const bytesPerSecond = e.loaded / elapsedSeconds;
+                    const mbps = (bytesPerSecond / (1024 * 1024)).toFixed(1);
+                    speedText = ` (${mbps} MB/s)`;
+                }
+
+                if (progressLabel) {
+                    if (pct < 100) {
+                        progressLabel.textContent = `Uploading "${file.name}"... ${pct}%${speedText}`;
+                    } else {
+                        progressLabel.textContent = `Processing video on server...`;
+                    }
+                }
+            }
+        };
+
+        xhr.onload = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                if (progressLabel) progressLabel.textContent = `Upload Complete!`;
+                if (progressFill) progressFill.style.width = '100%';
+                setTimeout(() => {
+                    if (progressContainer) progressContainer.classList.add('hidden');
+                }, 800);
+
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const timestamp = new Date().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        });
+                        const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
+                        const payload = {
+                            username: currentUsername,
+                            timestamp: timestamp,
+                            messageId: msgId,
+                            message: `[Video] ${file.name}`,
+                            video: {
+                                url: response.url,
+                                filename: response.filename,
+                                filesize: response.filesize,
+                                mimeType: response.mimeType,
+                                duration: duration,
+                                thumbnailUrl: thumbnailUrl
+                            }
+                        };
+
+                        const addMsgOpts = {
+                            messageId: msgId,
+                            video: payload.video
+                        };
+
+                        if (replyingTo) {
+                            payload.replyTo = replyingTo;
+                            addMsgOpts.replyTo = replyingTo;
+                            setTimeout(clearReplyTo, 50);
+                        }
+
+                        // Emit metadata and render locally
+                        safeEmit('chat message', payload);
+                        addMessage(currentUsername, payload.message, timestamp, true, addMsgOpts);
+                    } else {
+                        handleUploadFailure(file, duration, thumbnailUrl, response.error || 'Server error.');
+                    }
+                } catch (err) {
+                    console.error('[Upload Parse Error]:', err);
+                    handleUploadFailure(file, duration, thumbnailUrl, 'Invalid response format.');
+                }
+            } else {
+                let errorMsg = 'Server responded with status code ' + xhr.status;
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.error) errorMsg = res.error;
+                } catch (e) {}
+                handleUploadFailure(file, duration, thumbnailUrl, errorMsg);
+            }
+
+            attachmentInput.value = '';
+        };
+
+        xhr.onerror = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            handleUploadFailure(file, duration, thumbnailUrl, 'Network connection interrupted.');
+            attachmentInput.value = '';
+        };
+
+        xhr.onabort = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (progressContainer) progressContainer.classList.add('hidden');
+            showToast('⚠️ Video upload cancelled.');
+            attachmentInput.value = '';
+        };
+
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('roomCode', currentRoom);
+        formData.append('sessionToken', sessionToken);
+        formData.append('username', currentUsername);
+
+        xhr.open('POST', '/upload-video', true);
+        xhr.send(formData);
+    }
+
+    // Handles retry prompt on failure
+    function handleUploadFailure(file, duration, thumbnailUrl, reason) {
+        const progressContainer = document.getElementById('upload-progress-container');
+        if (progressContainer) progressContainer.classList.add('hidden');
+
+        showToast(`❌ Video upload failed: ${reason}`);
+
+        const retry = confirm(`Video upload failed: ${reason}\nWould you like to try uploading "${file.name}" again?`);
+        if (retry) {
+            performVideoUpload(file, duration, thumbnailUrl);
+        }
+    }
+
+    // Hook up Cancel button listener
+    const cancelBtnEl = document.getElementById('btn-cancel-upload');
+    if (cancelBtnEl) {
+        cancelBtnEl.addEventListener('click', () => {
+            if (currentUploadXhr) {
+                currentUploadXhr.abort();
+            }
+        });
     }
 
     // Handles reading the file, updating progress bar, and emitting to Socket.IO
     function handleAttachmentFile(file) {
         if (!validateAttachment(file)) {
             attachmentInput.value = '';
+            return;
+        }
+
+        const name = file.name.toLowerCase();
+        const isVideo = file.type.startsWith('video/') || ['.mp4', '.webm', '.mov', '.mkv', '.avi'].some(ext => name.endsWith(ext));
+
+        if (isVideo) {
+            console.log(`[Video Share] Initializing video flow for "${file.name}"...`);
+            const progressContainer = document.getElementById('upload-progress-container');
+            const progressLabel = document.getElementById('upload-progress-label');
+            if (progressContainer) progressContainer.classList.remove('hidden');
+            if (progressLabel) progressLabel.textContent = `Preparing video...`;
+
+            getVideoDuration(file).then(duration => {
+                generateVideoThumbnail(file).then(thumbnailUrl => {
+                    performVideoUpload(file, duration, thumbnailUrl);
+                });
+            });
             return;
         }
 
@@ -1860,6 +2209,5 @@ function formatFileSize(bytes) {
         });
     }
 })();
-
 
 

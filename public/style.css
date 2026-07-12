@@ -2021,9 +2021,11 @@ input:focus-visible {
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 24px;
     padding: 2px 6px 2px 14px;
+    min-height: 44px;
     transition: all 0.25s ease;
     backdrop-filter: blur(10px);
 }
+
 
 .input-text-container:focus-within {
     border-color: rgba(0, 255, 204, 0.65);
@@ -2441,6 +2443,113 @@ input:focus-visible {
     box-shadow: 0 0 12px rgba(0, 255, 204, 0.4);
 }
 
+/* Video Sharing Bubble layout */
+.message.video-message {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 4px 6px !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    width: fit-content;
+    max-width: 360px !important;
+}
+
+.message.video-message:hover {
+    transform: none; /* Disable hover scale movement */
+}
+
+/* Glassmorphic Video Download Card */
+.video-share-card {
+    margin-top: 4px;
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 360px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.shared-video {
+    display: block;
+    max-width: 100%;
+    max-height: 270px;
+    width: 360px;
+    height: auto;
+    object-fit: contain;
+    background: #000;
+}
+
+.video-share-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.video-share-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.video-share-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+.video-share-size {
+    font-size: 10px;
+    color: #bbb;
+}
+
+.btn-video-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px !important;
+    height: 30px;
+    padding: 0 10px !important;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #a855f7; /* Purple Theme color matching VibeChat */
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(168, 85, 247, 0.1);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-video-download:hover {
+    background: rgba(168, 85, 247, 0.25);
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    color: #c084fc;
+}
+
+.video-load-error {
+    padding: 12px;
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    border-radius: 12px;
+    max-width: 360px;
+    box-sizing: border-box;
+}
+
 /* Lightbox Modal */
 .lightbox-content {
     position: relative;
@@ -2526,7 +2635,4 @@ input:focus-visible {
         transform: scale(1);
     }
 }
-
-
-
 

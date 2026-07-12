@@ -4,16 +4,148 @@ const http = require("http");
 
 const { Server } = require("socket.io");
 
+const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
+const multer = require("multer");
+
 const app = express();
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 15e6  // Increase limit to 15 MB to handle 10 MB base64 files
+    maxHttpBufferSize: 15e6  // Keep existing socket buffer size unchanged
 });
 
+// Configure upload limits
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
+
+// Ensure uploads folder exists in public directory
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer Storage - Cryptographically unique names to prevent collision, traversal, or overwrites
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        // Cryptographically unique filename
+        const uniqueName = crypto.randomBytes(16).toString('hex') + ext;
+        cb(null, uniqueName);
+    }
+});
+
+// File validation filter
+const fileFilter = (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.mp4', '.webm', '.mov', '.mkv', '.avi'];
+    const allowedMimeTypes = [
+        'video/mp4', 'video/webm', 'video/ogg', 
+        'video/quicktime', 'video/x-matroska', 'video/x-msvideo'
+    ];
+
+    if (allowedExtensions.includes(ext) || allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Format not supported. Allowed: MP4, WEBM, MOV, MKV, AVI'), false);
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: MAX_VIDEO_SIZE },
+    fileFilter: fileFilter
+});
 
 app.use(express.static("public"));
+
+// Helper function to validate video headers/signatures (magic bytes)
+function validateVideoSignature(filePath) {
+    try {
+        const buffer = Buffer.alloc(12);
+        const fd = fs.openSync(filePath, 'r');
+        fs.readSync(fd, buffer, 0, 12, 0);
+        fs.closeSync(fd);
+
+        const hex = buffer.toString('hex').toUpperCase();
+
+        // 1. WebM / MKV
+        if (hex.startsWith('1A45DFA3')) return true;
+
+        // 2. AVI
+        if (hex.startsWith('52494646') && hex.substring(16, 24) === '41564920') return true;
+
+        // 3. MP4 / MOV (contains 'ftyp' hex 66747970)
+        if (hex.includes('66747970')) return true;
+
+        // 4. QuickTime (MOV) can also start with 'free' or 'mdat'
+        if (hex.includes('6D646174') || hex.includes('66726565')) return true;
+
+        return false;
+    } catch (e) {
+        console.error('Error verifying video signature:', e);
+        return false;
+    }
+}
+
+// HTTP Video Upload endpoint
+app.post('/upload-video', (req, res) => {
+    upload.single('video')(req, res, function (err) {
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ success: false, error: 'Video size exceeds 100 MB limit.' });
+            }
+            return res.status(400).json({ success: false, error: `Upload error: ${err.message}` });
+        } else if (err) {
+            return res.status(400).json({ success: false, error: err.message });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No video file provided.' });
+        }
+
+        const { roomCode, sessionToken, username } = req.body;
+
+        // Security check: parameters must be present
+        if (!roomCode || !sessionToken || !username) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ success: false, error: 'Missing security validation parameters.' });
+        }
+
+        // Security check: room must exist
+        const room = rooms[roomCode];
+        if (!room) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(403).json({ success: false, error: 'Target room does not exist.' });
+        }
+
+        // Security check: user must be approved in this room
+        const isApproved = room.approvedSessions && room.approvedSessions.has(sessionToken);
+        if (!isApproved) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(403).json({ success: false, error: 'Unauthorized room access.' });
+        }
+
+        // Security check: Verify file magic bytes signature to prevent spoofing
+        if (!validateVideoSignature(req.file.path)) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ success: false, error: 'Invalid file signature. Only real video files are allowed.' });
+        }
+
+        // Return relative path to static folder file
+        res.json({
+            success: true,
+            url: `/uploads/${req.file.filename}`,
+            filename: req.file.originalname,
+            filesize: req.file.size,
+            mimeType: req.file.mimetype
+        });
+    });
+});
 
 const users = {};
 const disconnectTimeouts = {};
@@ -98,8 +230,8 @@ io.on("connection", (socket) => {
                 allowReactions:   true,
                 allowEmoji:       true,
                 allowPolls:       false,
-                allowVoice:       false,
                 allowScreenShare: false,
+
                 allowInviteLinks: true
             }
         };
@@ -474,8 +606,11 @@ io.on("connection", (socket) => {
             hasImage: !!data.image,
             imageLength: data.image ? data.image.length : 0,
             hasFile: !!data.file,
-            fileSize: data.file ? data.file.size : 0
+            fileSize: data.file ? data.file.size : 0,
+            hasVideo: !!data.video,
+            videoSize: data.video ? data.video.filesize : 0
         });
+
 
         const user = users[socket.id];
 

@@ -303,7 +303,10 @@
 
             <!-- Upload progress bar (Feature: Image & File Sharing) -->
             <div id="upload-progress-container" class="hidden">
-                <span id="upload-progress-label">Sharing file...</span>
+                <div class="upload-progress-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span id="upload-progress-label">Sharing file...</span>
+                    <button type="button" id="btn-cancel-upload" class="btn-cancel-upload" style="background: none; border: none; color: #ff6b6b; font-size: 11px; font-weight: bold; cursor: pointer; padding: 0; transition: color 0.2s;" title="Cancel upload">✕ Cancel</button>
+                </div>
                 <div class="progress-bar-track">
                     <div id="upload-progress-fill" style="width: 0%"></div>
                 </div>
@@ -336,14 +339,17 @@
                             id="message-input"
                             placeholder="Type a message..."
                             autocomplete="off">
+                        
+
                         <button type="submit" id="btn-chat-send" title="Send message">
                             <span class="send-icon">➔</span>
                         </button>
                     </div>
 
                     <input type="file" id="sticker-file-input" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none">
-                    <input type="file" id="attachment-file-input" style="display:none" accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip,application/x-zip-compressed">
+                    <input type="file" id="attachment-file-input" style="display:none" accept="image/jpeg,image/jpg,image/png,image/webp,video/mp4,video/webm,video/ogg,video/quicktime,video/x-matroska,video/x-msvideo,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip,application/x-zip-compressed">
                 </div>
+
             </form>
 
 

@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Uploaded files
+public/uploads/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+npm-debug.log*
