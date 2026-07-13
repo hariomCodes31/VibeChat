@@ -2064,6 +2064,149 @@ function generateVideoThumbnail(file) {
         }
     }
 
+    // HTTP Image Upload operation using XMLHttpRequest
+    function performImageUpload(file) {
+        const xhr = new XMLHttpRequest();
+        currentUploadXhr = xhr;
+        setUploadsUIState(true);
+
+        const progressFill = document.getElementById('upload-progress-fill');
+        const progressContainer = document.getElementById('upload-progress-container');
+        const progressLabel = document.getElementById('upload-progress-label');
+        const cancelBtn = document.getElementById('btn-cancel-upload');
+
+        if (progressLabel) progressLabel.textContent = `Preparing image...`;
+        if (progressContainer) progressContainer.classList.remove('hidden');
+        if (progressFill) progressFill.style.width = '0%';
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
+
+        let startTime = Date.now();
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                if (progressFill) progressFill.style.width = pct + '%';
+
+                // Calculate speed
+                const elapsedSeconds = (Date.now() - startTime) / 1000;
+                let speedText = '';
+                if (elapsedSeconds > 0) {
+                    const bytesPerSecond = e.loaded / elapsedSeconds;
+                    const mbps = (bytesPerSecond / (1024 * 1024)).toFixed(1);
+                    speedText = ` (${mbps} MB/s)`;
+                }
+
+                if (progressLabel) {
+                    if (pct < 100) {
+                        progressLabel.textContent = `Uploading "${file.name}"... ${pct}%${speedText}`;
+                    } else {
+                        progressLabel.textContent = `Processing image on server...`;
+                    }
+                }
+            }
+        };
+
+        xhr.onload = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                if (progressLabel) progressLabel.textContent = `Upload Complete!`;
+                if (progressFill) progressFill.style.width = '100%';
+                setTimeout(() => {
+                    if (progressContainer) progressContainer.classList.add('hidden');
+                }, 800);
+
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const timestamp = new Date().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        });
+                        const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
+                        const payload = {
+                            username: currentUsername,
+                            timestamp: timestamp,
+                            messageId: msgId,
+                            message: `[Image]`,
+                            image: response.url
+                        };
+
+                        const addMsgOpts = {
+                            messageId: msgId,
+                            image: response.url
+                        };
+
+                        if (replyingTo) {
+                            payload.replyTo = replyingTo;
+                            addMsgOpts.replyTo = replyingTo;
+                            setTimeout(clearReplyTo, 50);
+                        }
+
+                        // Emit metadata and render locally
+                        safeEmit('chat message', payload);
+                        addMessage(currentUsername, payload.message, timestamp, true, addMsgOpts);
+                    } else {
+                        handleImageUploadFailure(file, response.error || 'Server error.');
+                    }
+                } catch (err) {
+                    console.error('[Upload Parse Error]:', err);
+                    handleImageUploadFailure(file, 'Invalid response format.');
+                }
+            } else {
+                let errorMsg = 'Server responded with status code ' + xhr.status;
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.error) errorMsg = res.error;
+                } catch (e) {}
+                handleImageUploadFailure(file, errorMsg);
+            }
+
+            attachmentInput.value = '';
+        };
+
+        xhr.onerror = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            handleImageUploadFailure(file, 'Network connection interrupted.');
+            attachmentInput.value = '';
+        };
+
+        xhr.onabort = () => {
+            currentUploadXhr = null;
+            setUploadsUIState(false);
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (progressContainer) progressContainer.classList.add('hidden');
+            showToast('⚠️ Image upload cancelled.');
+            attachmentInput.value = '';
+        };
+
+        const formData = new FormData();
+        formData.append('video', file); // Use 'video' field name to match what backend multer expects
+        formData.append('roomCode', currentRoom);
+        formData.append('sessionToken', sessionToken);
+        formData.append('username', currentUsername);
+
+        xhr.open('POST', '/upload-video', true);
+        xhr.send(formData);
+    }
+
+    function handleImageUploadFailure(file, reason) {
+        const progressContainer = document.getElementById('upload-progress-container');
+        if (progressContainer) progressContainer.classList.add('hidden');
+
+        showToast(`❌ Image upload failed: ${reason}`);
+
+        const retry = confirm(`Image upload failed: ${reason}\nWould you like to try uploading "${file.name}" again?`);
+        if (retry) {
+            performImageUpload(file);
+        }
+    }
+
     // Hook up Cancel button listener
     const cancelBtnEl = document.getElementById('btn-cancel-upload');
     if (cancelBtnEl) {
@@ -2096,6 +2239,16 @@ function generateVideoThumbnail(file) {
                     performVideoUpload(file, duration, thumbnailUrl);
                 });
             });
+            return;
+        }
+
+        const isImage = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].some(
+            mime => file.type === mime || name.endsWith(mime.split('/')[1])
+        );
+
+        if (isImage) {
+            console.log(`[Image Share] Initializing image flow for "${file.name}"...`);
+            performImageUpload(file);
             return;
         }
 

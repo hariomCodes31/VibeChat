@@ -42,16 +42,20 @@ const storage = multer.diskStorage({
 // File validation filter
 const fileFilter = (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.mp4', '.webm', '.mov', '.mkv', '.avi'];
+    const allowedExtensions = [
+        '.mp4', '.webm', '.mov', '.mkv', '.avi',
+        '.jpg', '.jpeg', '.png', '.webp'
+    ];
     const allowedMimeTypes = [
         'video/mp4', 'video/webm', 'video/ogg', 
-        'video/quicktime', 'video/x-matroska', 'video/x-msvideo'
+        'video/quicktime', 'video/x-matroska', 'video/x-msvideo',
+        'image/jpeg', 'image/jpg', 'image/png', 'image/webp'
     ];
 
     if (allowedExtensions.includes(ext) || allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Format not supported. Allowed: MP4, WEBM, MOV, MKV, AVI'), false);
+        cb(new Error('Format not supported. Allowed: MP4, WEBM, MOV, MKV, AVI, JPG, JPEG, PNG, WEBP'), false);
     }
 };
 
@@ -64,7 +68,8 @@ const upload = multer({
 app.use(express.static("public"));
 
 // Helper function to validate video headers/signatures (magic bytes)
-function validateVideoSignature(filePath) {
+// Helper function to validate file headers/signatures (magic bytes) for videos and images
+function validateFileSignature(filePath) {
     try {
         const buffer = Buffer.alloc(12);
         const fd = fs.openSync(filePath, 'r');
@@ -85,19 +90,28 @@ function validateVideoSignature(filePath) {
         // 4. QuickTime (MOV) can also start with 'free' or 'mdat'
         if (hex.includes('6D646174') || hex.includes('66726565')) return true;
 
+        // 5. PNG: 89504E470D0A1A0A
+        if (hex.startsWith('89504E47')) return true;
+
+        // 6. JPEG/JPG: FFD8FF
+        if (hex.startsWith('FFD8FF')) return true;
+
+        // 7. WebP (starts with RIFF '52494646' and has WEBP '57454250' at offset 8)
+        if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') return true;
+
         return false;
     } catch (e) {
-        console.error('Error verifying video signature:', e);
+        console.error('Error verifying file signature:', e);
         return false;
     }
 }
 
-// HTTP Video Upload endpoint
+// HTTP Video & Image Upload endpoint
 app.post('/upload-video', (req, res) => {
     upload.single('video')(req, res, function (err) {
         if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ success: false, error: 'Video size exceeds 100 MB limit.' });
+                return res.status(400).json({ success: false, error: 'File size exceeds upload limit (Max: 100 MB for videos).' });
             }
             return res.status(400).json({ success: false, error: `Upload error: ${err.message}` });
         } else if (err) {
@@ -105,7 +119,7 @@ app.post('/upload-video', (req, res) => {
         }
 
         if (!req.file) {
-            return res.status(400).json({ success: false, error: 'No video file provided.' });
+            return res.status(400).json({ success: false, error: 'No file provided.' });
         }
 
         const { roomCode, sessionToken, username } = req.body;
@@ -130,10 +144,19 @@ app.post('/upload-video', (req, res) => {
             return res.status(403).json({ success: false, error: 'Unauthorized room access.' });
         }
 
-        // Security check: Verify file magic bytes signature to prevent spoofing
-        if (!validateVideoSignature(req.file.path)) {
+        // Image validation check: enforce 10 MB limit for images specifically
+        const isImage = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(req.file.mimetype) ||
+                        ['.jpg', '.jpeg', '.png', '.webp'].some(ext => req.file.filename.toLowerCase().endsWith(ext));
+        
+        if (isImage && req.file.size > 10 * 1024 * 1024) {
             if (req.file) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, error: 'Invalid file signature. Only real video files are allowed.' });
+            return res.status(400).json({ success: false, error: 'Image size exceeds 10 MB limit.' });
+        }
+
+        // Security check: Verify file magic bytes signature to prevent spoofing
+        if (!validateFileSignature(req.file.path)) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ success: false, error: 'Invalid file signature. Only real video or image files are allowed.' });
         }
 
         // Return relative path to static folder file
