@@ -1,0 +1,956 @@
+/*
+ * polish.css — VibeChat UI Polish Pass (Final Refinement)
+ * ─────────────────────────────────────────────────────────
+ * Purpose : Targeted visual improvements over style.css.
+ *            No layout, JS, or functionality changes.
+ *            Every selector references an existing HTML element.
+ * Rules   : CSS-only overrides. Nothing is removed. Safely additive.
+ */
+
+
+/* ============================================================
+   GLOBAL RENDERING & FONT SMOOTHING
+   Improves text rendering on all platforms without
+   changing the font family (preserves existing stack).
+============================================================ */
+*, *::before, *::after {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* ============================================================
+   CSS CUSTOM PROPERTIES (Design Tokens)
+============================================================ */
+:root {
+    --cyan:       #00ffcc;
+    --purple:     #c471ed;
+    --blue:       #12c2e9;
+    --gold:       #ffd700;
+    --red-ctrl:   #e74c3c;
+    --border-sm:  rgba(255, 255, 255, 0.07);
+    --border-md:  rgba(255, 255, 255, 0.11);
+    --transition: 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+/* ============================================================
+   GLOBAL BUTTON BASELINE
+   Consistent transition + active press state.
+   Does NOT override background/color — those are per-component.
+============================================================ */
+button {
+    transition: transform var(--transition), box-shadow var(--transition), background var(--transition) !important;
+    letter-spacing: 0.25px;
+}
+
+button:active {
+    transform: scale(0.96) !important;
+}
+
+
+/* ============================================================
+   CHAT HEADER
+   — Slightly more prominent title (42px — up from 38px)
+   — Better breathing room above and below
+   — Clean hairline separator beneath
+   — Column stack preserved (title + room bar)
+============================================================ */
+.chat-header {
+    padding: 14px 20px 12px;            /* a touch more top/bottom air */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: 6px;
+    gap: 6px;
+    flex-direction: column;
+    align-items: center;
+}
+
+.chat-container h1 {
+    font-size: 42px;                    /* up from 38 — more prominent */
+    margin-bottom: 0;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+}
+
+/* Tagline — quiet but present */
+.tagline {
+    font-size: 11.5px;
+    letter-spacing: 1.4px;
+    color: rgba(160, 185, 210, 0.5);
+    margin-bottom: 8px;
+    text-transform: lowercase;
+}
+
+
+/* ============================================================
+   ROOM INFO BAR
+   — Cleaner pill with soft shadow
+   — Room name slightly bolder
+   — Code badge prominent but not overlit
+   — Copy/link buttons visually consistent
+============================================================ */
+#room-info-bar {
+    padding: 7px 14px;
+    border-radius: 12px;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    margin-top: 2px;
+}
+
+.room-name-display {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.35px;
+    color: #c0ccf0;
+}
+
+.room-code-label {
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    opacity: 0.85;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.room-code-badge {
+    font-size: 13.5px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    padding: 3px 11px;
+    border-radius: 7px;
+    background: rgba(0, 255, 204, 0.1);
+    border: 1px solid rgba(0, 255, 204, 0.28);
+    color: var(--cyan);
+    /* Controlled glow — visible but not excessive */
+    text-shadow: 0 0 8px rgba(0, 255, 204, 0.45);
+    box-shadow: inset 0 1px 0 rgba(0, 255, 204, 0.08);
+}
+
+/* Icon buttons — copy code / copy link */
+.btn-icon {
+    width: auto;
+    padding: 4px 8px;
+    min-height: 28px;
+    border-radius: 7px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: none;
+    transition: background var(--transition), transform var(--transition), border-color var(--transition) !important;
+}
+
+.btn-icon:hover {
+    background: rgba(0, 255, 204, 0.1) !important;
+    border-color: rgba(0, 255, 204, 0.3) !important;
+    transform: scale(1.07) !important;
+    box-shadow: none !important;
+}
+
+
+/* ============================================================
+   MESSAGES AREA
+   — Flex-fill the remaining height (keeps existing flex layout)
+   — Tighter but intentional padding
+   — Refined scrollbar — thin, unobtrusive
+   — Subtle inner definition without heavy borders
+============================================================ */
+#messages {
+    border-radius: 18px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Scrollbar — 4px thin, transparent track */
+#messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+#messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+
+#messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 204, 0.3);
+}
+
+
+/* ============================================================
+   MESSAGE BUBBLES
+   — Compact but not cramped: reduced vertical padding
+   — Slightly wider on desktop (60 → 68%)
+   — Hover lift is minimal so chat doesn't jump
+   — Gradient preserved; opacity very slightly calmed
+============================================================ */
+.message {
+    max-width: 68%;
+    margin-bottom: 12px;                /* was 20px in style.css */
+    padding: 10px 15px;                 /* was 14px 18px — more compact */
+    border-radius: 16px;
+    line-height: 1.55;
+}
+
+/* Minimal hover — no layout movement */
+.message:hover {
+    transform: translateY(-1px) !important;
+}
+
+/* Own messages */
+.my-message {
+    background: linear-gradient(
+        135deg,
+        rgba(88, 101, 242, 0.88),
+        rgba(18, 194, 233, 0.84)
+    );
+    box-shadow:
+        0 2px 10px rgba(88, 101, 242, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Other users */
+.other-message {
+    background: linear-gradient(
+        135deg,
+        rgba(196, 113, 237, 0.80),
+        rgba(76, 161, 175, 0.72)
+    );
+    box-shadow:
+        0 2px 10px rgba(196, 113, 237, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Avatar — compact */
+.avatar {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    font-size: 16px;
+}
+
+/* Message top row gap — tighter */
+.message-top {
+    gap: 10px;
+}
+
+/* Sender name */
+.message-top strong {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+}
+
+/* Message body text */
+.message-top > div,
+.message > div {
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+/* Timestamp — quieter */
+.timestamp {
+    font-size: 10px;
+    opacity: 0.55;
+    margin-top: 5px;
+    letter-spacing: 0.2px;
+}
+
+/* System messages — pill style, centred */
+.system-message {
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+    margin: 6px auto;
+    padding: 3px 14px;
+    background: rgba(0, 255, 204, 0.05);
+    border: 1px solid rgba(0, 255, 204, 0.09);
+    border-radius: 20px;
+    display: table;
+    color: #00ffcc;
+}
+
+#messages .system-message {
+    display: table;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/* ============================================================
+   SIDEBAR
+   — Tighter padding
+   — Clear visual structure: admin → users → footer
+   — Reduces dead vertical space by keeping flex-direction: column
+     with justify-content: flex-start (user list grows naturally)
+   — Footer stays anchored at bottom via sidebar's existing
+     justify-content: space-between
+============================================================ */
+.sidebar {
+    padding: 14px 14px;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(10, 10, 20, 0.52);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.28), 0 0 16px rgba(0, 255, 255, 0.06);
+}
+
+/* ONLINE USERS — section label style */
+#users-title {
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 1.8px !important;
+    text-transform: uppercase !important;
+    color: rgba(120, 140, 165, 0.8) !important;
+    text-shadow: none !important;
+    margin-bottom: 10px !important;
+    margin-top: 4px !important;
+    padding-bottom: 7px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* User list — compact cards */
+#users {
+    display: flex;
+    flex-direction: column;
+    gap: 0;                             /* gap controlled by li margin-bottom */
+}
+
+#users li {
+    padding: 9px 11px;
+    margin-bottom: 5px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    transition: background var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+#users li:hover {
+    transform: none !important;         /* no scale on user cards — avoids layout jitter */
+    background: rgba(255, 255, 255, 0.075) !important;
+    box-shadow: 0 0 0 1px rgba(0, 255, 255, 0.12) !important;
+}
+
+.user-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+}
+
+.user-avatar-sm {
+    font-size: 17px;
+}
+
+/* Sidebar footer — quiet, anchored */
+footer {
+    font-size: 10.5px;
+    color: rgba(150, 165, 185, 0.35);
+    letter-spacing: 0.5px;
+    text-align: center;
+    padding: 7px 0 1px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+    margin-top: 6px;
+}
+
+
+/* ============================================================
+   ADMIN PANEL
+   — Compact, structured header
+   — Lock / Close buttons: properly sized, clear hierarchy
+   — Permission section: readable, not overwhelming
+============================================================ */
+#admin-panel {
+    border-radius: 12px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    background: rgba(255, 215, 0, 0.025);
+    box-shadow: inset 0 1px 0 rgba(255, 215, 0, 0.05);
+    overflow: hidden;
+}
+
+.admin-panel-header {
+    padding: 9px 13px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: rgba(255, 215, 0, 0.9);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
+    background: rgba(255, 215, 0, 0.055);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.09);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Lock / Close button row */
+.admin-btn-row {
+    padding: 9px 9px 7px;
+    gap: 7px;
+}
+
+.btn-admin-ctrl {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    border-radius: 9px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.25px !important;
+    color: rgba(255, 215, 0, 0.9) !important;
+    border: 1px solid rgba(255, 215, 0, 0.18) !important;
+    background: rgba(255, 215, 0, 0.05) !important;
+    transition: background var(--transition), border-color var(--transition), box-shadow var(--transition) !important;
+}
+
+.btn-admin-ctrl:hover {
+    background: rgba(255, 215, 0, 0.12) !important;
+    border-color: rgba(255, 215, 0, 0.38) !important;
+    transform: none !important;         /* no lift — admin buttons stay still */
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.15) !important;
+}
+
+.btn-admin-ctrl[data-locked="true"] {
+    background: rgba(192, 57, 43, 0.1) !important;
+    border-color: rgba(192, 57, 43, 0.35) !important;
+    color: rgba(231, 76, 60, 0.95) !important;
+}
+
+.btn-ctrl-danger {
+    border-color: rgba(192, 57, 43, 0.25) !important;
+    background: rgba(192, 57, 43, 0.055) !important;
+    color: rgba(231, 76, 60, 0.9) !important;
+}
+
+.btn-ctrl-danger:hover {
+    background: rgba(192, 57, 43, 0.16) !important;
+    border-color: rgba(192, 57, 43, 0.45) !important;
+    box-shadow: 0 0 10px rgba(192, 57, 43, 0.15) !important;
+}
+
+/* Permissions section */
+.perm-section {
+    padding: 9px 11px 9px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.perm-title {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: 1.5px !important;
+    color: rgba(120, 140, 160, 0.75) !important;
+    text-transform: uppercase !important;
+    margin-bottom: 7px !important;
+}
+
+.perm-toggle {
+    padding: 4px 2px;
+    gap: 8px;
+    font-size: 12px;
+    color: rgba(175, 188, 210, 0.75);
+    border-radius: 5px;
+    transition: color var(--transition);
+}
+
+.perm-toggle:hover span {
+    color: #ddeeff !important;
+}
+
+/* Pending requests */
+#pending-section {
+    padding: 8px 9px 6px;
+}
+
+.pending-title {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: 1.5px !important;
+    color: rgba(120, 140, 160, 0.75) !important;
+    text-transform: uppercase !important;
+    margin-bottom: 8px !important;
+}
+
+.pending-item {
+    border-radius: 9px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 5px;
+}
+
+.pending-name {
+    font-size: 12.5px;
+    color: #ccd;
+}
+
+.btn-approve {
+    border-radius: 7px !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+}
+
+.btn-reject {
+    border-radius: 7px !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+}
+
+
+/* ============================================================
+   MESSAGE INPUT COMPOSER
+   — All three action controls (attach, sticker, send) share
+     the same border-radius and visual weight
+   — Input container: clean, focused state is prominent
+   — No size changes that would hurt mobile tap targets
+============================================================ */
+.message-input-wrapper {
+    gap: 7px;
+    align-items: center;
+}
+
+/* Attachment + sticker buttons */
+#btn-attachment-picker,
+#btn-sticker-picker {
+    width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    font-size: 17px !important;
+    background: rgba(255, 255, 255, 0.065) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    box-shadow: none !important;
+    transition: background var(--transition), border-color var(--transition), transform var(--transition) !important;
+}
+
+#btn-attachment-picker:hover,
+#btn-sticker-picker:hover {
+    background: rgba(0, 255, 204, 0.09) !important;
+    border-color: rgba(0, 255, 204, 0.32) !important;
+    transform: scale(1.05) !important;
+    box-shadow: none !important;
+}
+
+/* Text input pill */
+.input-text-container {
+    border-radius: 20px;
+    min-height: 42px;
+    padding: 2px 8px 2px 16px;
+    background: rgba(255, 255, 255, 0.065);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.input-text-container:focus-within {
+    border-color: rgba(0, 255, 204, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.07), 0 0 16px rgba(0, 255, 204, 0.14) !important;
+    background: rgba(255, 255, 255, 0.095) !important;
+}
+
+.input-text-container #message-input {
+    font-size: 14px;
+    letter-spacing: 0.1px;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+/* Send button — same 10px radius as attach/sticker */
+#btn-chat-send {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, #c471ed, #12c2e9) !important;
+    box-shadow: 0 2px 10px rgba(18, 194, 233, 0.28) !important;
+    font-size: 15px !important;
+    transition: transform var(--transition), box-shadow var(--transition) !important;
+}
+
+#btn-chat-send:hover {
+    transform: scale(1.06) !important;
+    box-shadow: 0 4px 16px rgba(196, 113, 237, 0.45) !important;
+}
+
+#btn-chat-send:active {
+    transform: scale(0.93) !important;
+}
+
+
+/* ============================================================
+   REPLY INDICATOR
+============================================================ */
+#reply-indicator {
+    border-radius: 9px;
+    margin: 0 2px 8px;
+    padding: 6px 12px;
+    background: rgba(0, 255, 204, 0.05);
+    border-left: 2px solid rgba(0, 255, 204, 0.6);
+    border-top: 1px solid rgba(0, 255, 204, 0.07);
+    border-right: 1px solid rgba(0, 255, 204, 0.07);
+    border-bottom: 1px solid rgba(0, 255, 204, 0.07);
+}
+
+#reply-preview {
+    color: rgba(165, 185, 205, 0.9);
+    font-size: 12px;
+}
+
+.reply-arrow {
+    color: var(--cyan);
+    font-size: 13px;
+}
+
+
+/* ============================================================
+   MUTED BANNER
+============================================================ */
+#muted-banner {
+    border-radius: 9px;
+    font-size: 12px;
+    padding: 8px 14px;
+    letter-spacing: 0.3px;
+    margin: 0 2px 8px;
+}
+
+
+/* ============================================================
+   LANDING SCREEN
+   — Refined card depth
+   — Consistent form field focus rings
+   — Button radius unified at 11px
+============================================================ */
+.landing-card {
+    border-radius: 22px;
+    padding: 34px 30px;
+    border: 1px solid rgba(255, 255, 255, 0.085);
+    box-shadow:
+        0 0 40px rgba(0, 255, 204, 0.06),
+        0 0 80px rgba(142, 45, 226, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 20px 40px rgba(0, 0, 0, 0.38);
+}
+
+.landing-title {
+    font-size: clamp(32px, 7.5vw, 48px);
+    letter-spacing: -0.5px;
+}
+
+.landing-sub {
+    color: rgba(130, 148, 168, 0.78);
+    letter-spacing: 0.5px;
+    font-size: 13.5px;
+}
+
+.field-label {
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    font-weight: 700;
+    color: rgba(0, 255, 204, 0.8);
+    text-transform: uppercase;
+}
+
+.field-group input {
+    padding: 12px 15px;
+    border-radius: 11px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.field-group input:focus {
+    border-color: rgba(0, 255, 204, 0.45) !important;
+    box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.06), 0 0 14px rgba(0, 255, 204, 0.08) !important;
+}
+
+/* Landing action buttons */
+.btn-landing {
+    padding: 12px 14px;
+    border-radius: 11px;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+}
+
+.btn-create {
+    box-shadow: 0 0 14px rgba(142, 45, 226, 0.3);
+}
+
+.btn-create:hover {
+    box-shadow: 0 4px 20px rgba(142, 45, 226, 0.55) !important;
+}
+
+.btn-join {
+    box-shadow: 0 0 14px rgba(0, 180, 216, 0.25);
+}
+
+.btn-join:hover {
+    box-shadow: 0 4px 20px rgba(0, 180, 216, 0.5) !important;
+}
+
+/* Room type selector */
+.rt-btn {
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.2px !important;
+}
+
+/* Avatar options */
+.avatar-option {
+    border-radius: 9px;
+}
+
+.avatar-option.selected {
+    box-shadow: 0 0 0 2px rgba(0, 255, 204, 0.75), 0 0 12px rgba(0, 255, 204, 0.28);
+}
+
+
+/* ============================================================
+   WAITING SCREEN
+============================================================ */
+.waiting-card {
+    border-radius: 22px;
+    padding: 44px 36px;
+    box-shadow:
+        0 0 40px rgba(0, 255, 204, 0.06),
+        0 0 80px rgba(142, 45, 226, 0.04),
+        0 20px 40px rgba(0, 0, 0, 0.38);
+}
+
+.waiting-title {
+    font-size: 22px;
+    letter-spacing: -0.3px;
+}
+
+.waiting-sub {
+    font-size: 13px;
+    color: rgba(100, 116, 132, 0.85);
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   MODALS (Sticker crop / preview)
+============================================================ */
+.sticker-modal-content {
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
+}
+
+.modal-title {
+    font-size: 15.5px;
+    font-weight: 800;
+    letter-spacing: 0.25px;
+}
+
+.btn-modal {
+    border-radius: 9px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    min-height: 40px !important;
+}
+
+
+/* ============================================================
+   TOAST NOTIFICATION
+============================================================ */
+#toast {
+    border-radius: 22px;
+    font-size: 12.5px;
+    padding: 8px 20px;
+    letter-spacing: 0.4px;
+    box-shadow: 0 4px 16px rgba(0, 255, 204, 0.18);
+}
+
+
+/* ============================================================
+   FOCUS RING — Accessibility
+============================================================ */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--cyan) !important;
+    outline-offset: 2px !important;
+}
+
+
+/* ============================================================
+   UPLOAD PROGRESS BAR
+============================================================ */
+#upload-progress-container {
+    border-radius: 9px;
+    padding: 8px 13px;
+    background: rgba(14, 14, 24, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 7px;
+}
+
+#upload-progress-label {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.progress-bar-track {
+    height: 5px;
+    border-radius: 5px;
+}
+
+
+/* ============================================================
+   USER ACTION BUTTONS (mute / kick / transfer)
+============================================================ */
+.btn-user-action {
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    padding: 3px 7px !important;
+    min-height: 25px !important;
+    transition: background var(--transition), transform var(--transition) !important;
+}
+
+.btn-user-action:hover {
+    transform: scale(1.08) !important;
+}
+
+
+/* ============================================================
+   REACTION PILLS
+============================================================ */
+.reaction-pill {
+    border-radius: 9px;
+    padding: 2px 8px;
+    font-size: 13px;
+    transition: background var(--transition), transform var(--transition), border-color var(--transition);
+}
+
+.reaction-pill:hover {
+    transform: scale(1.05) !important;
+}
+
+
+/* ============================================================
+   DRAG & DROP OVERLAY
+============================================================ */
+#drag-drop-overlay {
+    border-radius: 16px;
+    border: 2px dashed rgba(0, 255, 204, 0.45);
+}
+
+.dd-text {
+    font-size: 16px;
+    letter-spacing: 0.5px;
+}
+
+
+/* ============================================================
+   LIGHTBOX CLOSE BUTTON
+============================================================ */
+.btn-lightbox-close {
+    border-radius: 9px !important;
+    width: 30px !important;
+    height: 30px !important;
+}
+
+
+/* ============================================================
+   MOBILE RESPONSIVE GUARDS
+   Reset anything introduced above that could break small screens.
+   Mirrors the existing breakpoints from style.css precisely.
+============================================================ */
+@media (max-width: 768px) {
+
+    /* Header title on mobile */
+    .chat-container h1 {
+        font-size: clamp(20px, 5.5vw, 26px) !important;
+        letter-spacing: 0 !important;
+    }
+
+    /* Chat header padding — preserve existing mobile offsets */
+    .chat-header {
+        padding: 8px 12px 6px;
+        margin-bottom: 4px;
+    }
+
+    /* Tagline already hidden on landscape; ensure it stays compact */
+    .tagline {
+        font-size: 11px;
+        margin-bottom: 4px;
+    }
+
+    /* Messages: full width on mobile */
+    .message {
+        max-width: 90% !important;
+        padding: 9px 13px !important;
+    }
+
+    /* Attachment/sticker — larger tap targets on mobile */
+    #btn-attachment-picker,
+    #btn-sticker-picker {
+        width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        border-radius: 10px !important;
+    }
+
+    /* Send button — consistent tap target */
+    #btn-chat-send {
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 10px !important;
+    }
+
+    /* Sidebar — slightly tighter on mobile */
+    .sidebar {
+        padding: 14px 12px;
+    }
+
+    /* Users title stays readable on mobile */
+    #users-title {
+        font-size: 12px !important;
+        letter-spacing: 1.2px !important;
+    }
+
+    /* Landing card mobile */
+    .landing-card {
+        padding: 24px 18px;
+        border-radius: 18px;
+    }
+
+}
+
+@media (max-width: 380px) {
+
+    .message {
+        max-width: 93% !important;
+    }
+
+    .landing-card {
+        padding: 20px 14px;
+    }
+
+    #btn-attachment-picker,
+    #btn-sticker-picker,
+    #btn-chat-send {
+        width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+    }
+
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+
+    .chat-container h1 {
+        font-size: 20px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .tagline {
+        display: none !important;
+    }
+
+}
